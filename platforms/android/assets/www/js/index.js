@@ -16,10 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+'use strict';
+
+var retainer = {
+    /* TODO: FILL IN SERVICE & LEVEL
+    service:
+    level:
+    */
+};
+
 var app = {
     // Application Constructor
     initialize: function() {
         this.bindEvents();
+        detailPage.hidden = true;
     },
     // Bind Event Listeners
     //
@@ -27,24 +37,55 @@ var app = {
     // 'load', 'deviceready', 'offline', and 'online'.
     bindEvents: function() {
         document.addEventListener('deviceready', this.onDeviceReady, false);
+        refreshButton.addEventListener('touchstart', this.refreshDeviceList, false);
+        disconnectButton.addEventListener('touchstart', this.disconnect, false);
+        deviceList.addEventListener('touchstart', this.connect, false);
     },
-    // deviceready Event Handler
-    //
-    // The scope of 'this' is the event. In order to call the 'receivedEvent'
-    // function, we must explicitly call 'app.receivedEvent(...);'
     onDeviceReady: function() {
-        app.receivedEvent('deviceready');
+        app.refreshDeviceList();
     },
-    // Update DOM on a Received Event
-    receivedEvent: function(id) {
-        var parentElement = document.getElementById(id);
-        var listeningElement = parentElement.querySelector('.listening');
-        var receivedElement = parentElement.querySelector('.received');
+    refreshDeviceList: function() {
+        deviceList.innerHTML = '';
+        ble.scan([], 5, app.onDiscoverDevice, app.onError);
+    },
+    onDiscoverDevice: function(device) {
 
-        listeningElement.setAttribute('style', 'display:none;');
-        receivedElement.setAttribute('style', 'display:block;');
+        console.log(JSON.stringify(device));
+        var listItem = document.createElement('li'),
+            html = '<b>' + device.name + '</b><br/>' +
+                'RSSI: ' + device.rssi + '&nbsp;|&nbsp;' +
+                device.id;
 
-        console.log('Received Event: ' + id);
+        listItem.dataset.deviceId = device.id;
+        listItem.innerHTML = html;
+        deviceList.appendChild(listItem);
+
+    },
+    connect: function(e) {
+        var deviceId = e.target.dataset.deviceId,
+            onConnect = function() {
+
+                console.log('Connected :)!');
+                disconnectButton.dataset.deviceId = deviceId;
+                app.showDetailPage();
+            };
+
+        ble.connect(deviceId, onConnect, app.onError);
+    },
+    disconnect: function(event) {
+        var deviceId = event.target.dataset.deviceId;
+        ble.disconnect(deviceId, app.showMainPage, app.onError);
+    },
+    showMainPage: function() {
+        mainPage.hidden = false;
+        detailPage.hidden = true;
+    },
+    showDetailPage: function() {
+        mainPage.hidden = true;
+        detailPage.hidden = false;
+    },
+    onError: function(reason) {
+        alert("ERROR: " + reason); // TODO: Eventually use notification.alert
     }
 };
 
