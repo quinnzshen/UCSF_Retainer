@@ -19,10 +19,8 @@
 'use strict';
 
 var retainer = {
-    /* TODO: FILL IN SERVICE & LEVEL
-    service:
-    level:
-    */
+    service: "61744710-a6e8-11e2-9e96-0800200c9a66",
+    level: "3ca692d0-b9a8-11e2-9e96-0800200c9a66"
 };
 
 var app = {
@@ -38,6 +36,7 @@ var app = {
     bindEvents: function() {
         document.addEventListener('deviceready', this.onDeviceReady, false);
         refreshButton.addEventListener('touchstart', this.refreshDeviceList, false);
+        temperatureButton.addEventListener('touchstart', this.readTemperature, false);
         disconnectButton.addEventListener('touchstart', this.disconnect, false);
         deviceList.addEventListener('touchstart', this.connect, false);
     },
@@ -62,9 +61,9 @@ var app = {
 
     },
     connect: function(e) {
+        console.log(JSON.stringify(e.target.dataset));
         var deviceId = e.target.dataset.deviceId,
             onConnect = function() {
-
                 console.log('Connected :)!');
                 disconnectButton.dataset.deviceId = deviceId;
                 app.showDetailPage();
@@ -75,6 +74,21 @@ var app = {
     disconnect: function(event) {
         var deviceId = event.target.dataset.deviceId;
         ble.disconnect(deviceId, app.showMainPage, app.onError);
+    },
+    readTemperature: function(event) {
+        console.log("Calling readTemperature");
+        console.log(retainer.service);
+        console.log(retainer.level);
+        var deviceId = event.target.dataset.deviceId;
+        console.log(deviceId);
+        ble.read("00:07:80:A4:7C:B8", retainer.service, retainer.level, app.onTemperatureRead, app.onError);
+    },
+    onTemperatureRead: function(data) {
+        console.log(data);
+        var message;
+        var displayedData = new uint8Array(data);
+        deviceTemperature.innerHTML = "Testing innerHTML."
+        // deviceTemperature.innerHTML = displayedData[0] + ' Celcius';
     },
     showMainPage: function() {
         mainPage.hidden = false;
