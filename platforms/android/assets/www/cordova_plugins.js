@@ -6,8 +6,8 @@ module.exports = [
         "runs": true
     },
     {
-        "file": "plugins/com.megster.cordova.ble/www/ble.js",
-        "id": "com.megster.cordova.ble.ble",
+        "file": "plugins/cordova-plugin-ble-central/www/ble.js",
+        "id": "cordova-plugin-ble-central.ble",
         "clobbers": [
             "ble"
         ]
@@ -17,7 +17,7 @@ module.exports.metadata =
 // TOP OF METADATA
 {
     "cordova-plugin-whitelist": "1.0.0",
-    "com.megster.cordova.ble": "0.1.9"
+    "cordova-plugin-ble-central": "1.0.1"
 }
 // BOTTOM OF METADATA
 });

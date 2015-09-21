@@ -88,10 +88,13 @@ var app = {
     onTemperatureRead: function(data) {
         console.log(data);
         var hex_data = new Uint16Array(data);
-        console.log(hex_data);
+        console.log('uint16_lil ' + hex_data.toString(16));
         hex_data = convert_endian(hex_data);
-        console.log(hex_data);
-        var temp_data = parseInt(hex_data, 16);
+        console.log('initial ' + hex_data.toString(16));
+        hex_data = convert_endian(hex_data);
+        console.log('large_end ' + hex_data.toString(16));
+
+        var temp_data = parseInt(hex_data.toString(16), 16);
         console.log(temp_data);
         temp_data = ((temp_data / 16) - 1335) * (1150 / 4096);
         console.log(temp_data);

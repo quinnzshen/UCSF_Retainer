@@ -41,7 +41,7 @@
         "cordova-plugin-whitelist": {
             "PACKAGE_NAME": "com.ucsf.smartretainer"
         },
-        "com.megster.cordova.ble": {
+        "cordova-plugin-ble-central": {
             "PACKAGE_NAME": "com.ucsf.smartretainer"
         }
     },
