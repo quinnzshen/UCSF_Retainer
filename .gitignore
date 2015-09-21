@@ -1,0 +1,4 @@
+# Ignore Built Code for Platforms
+
+platforms/android/**
+platforms/ios/**

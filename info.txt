@@ -1,0 +1,63 @@
+Node version: v0.12.7
+
+Cordova version: 5.3.1
+
+Config.xml file: 
+
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.ucsf.smartretainer" version="0.0.1" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>SmartRetainer</name>
+    <description>
+        A Smart Retainer application that determines a patients retainer usage rate.
+    </description>
+    <author email="quinn.z.shen+ucsf@gmail.com" href="http://cordova.io">
+        Quinn Z Shen
+    </author>
+    <content src="index.html" />
+    <plugin name="cordova-plugin-whitelist" version="1" />
+    <access origin="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <allow-intent href="tel:*" />
+    <allow-intent href="sms:*" />
+    <allow-intent href="mailto:*" />
+    <allow-intent href="geo:*" />
+    <platform name="android">
+        <allow-intent href="market:*" />
+    </platform>
+    <platform name="ios">
+        <allow-intent href="itms:*" />
+        <allow-intent href="itms-apps:*" />
+    </platform>
+</widget>
+
+
+Plugins: 
+
+com.megster.cordova.ble,cordova-plugin-whitelist
+
+Android platform:
+
+Available Android targets:
+----------
+id: 1 or "android-22"
+     Name: Android 5.1.1
+     Type: Platform
+     API level: 22
+     Revision: 2
+     Skins: HVGA, QVGA, WQVGA400, WQVGA432, WSVGA, WVGA800 (default), WVGA854, WXGA720, WXGA800, WXGA800-7in
+ Tag/ABIs : no ABIs.
+----------
+id: 2 or "android-23"
+     Name: Android 6.0
+     Type: Platform
+     API level: 23
+     Revision: 1
+     Skins: HVGA, QVGA, WQVGA400, WQVGA432, WSVGA, WVGA800 (default), WVGA854, WXGA720, WXGA800, WXGA800-7in
+ Tag/ABIs : no ABIs.
+
+iOS platform:
+
+Xcode 7.0
+Build version 7A220
+
