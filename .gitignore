@@ -1,12 +1,5 @@
 # Untracked Files
 
 # Ignore Built Code for Platforms
-platforms
 platforms/android/**
 platforms/ios/**
-
-platforms/android/.gradle/**
-platforms/android/assets/**
-
-# Ignore Any Folder with Build Products
-*/build/*

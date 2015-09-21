@@ -34,7 +34,7 @@ Config.xml file:
 
 Plugins: 
 
-com.megster.cordova.ble,cordova-plugin-whitelist
+cordova-plugin-ble-central,cordova-plugin-whitelist
 
 Android platform:
 
