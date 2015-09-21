@@ -1,4 +1,8 @@
+# Untracked Files
 # Ignore Built Code for Platforms
-
+platforms
 platforms/android/**
 platforms/ios/**
+
+# Ignore Any Folder with Build Products
+*/build/*
