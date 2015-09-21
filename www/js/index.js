@@ -23,6 +23,8 @@ var retainer = {
     level: "3ca692d0-b9a8-11e2-9e96-0800200c9a66"
 };
 
+var device_id;
+
 var app = {
     // Application Constructor
     initialize: function() {
@@ -62,6 +64,7 @@ var app = {
     },
     connect: function(e) {
         console.log(JSON.stringify(e.target.dataset));
+        device_id = e.target.dataset.deviceId;
         var deviceId = e.target.dataset.deviceId,
             onConnect = function() {
                 console.log('Connected :)!');
@@ -79,16 +82,23 @@ var app = {
         console.log("Calling readTemperature");
         console.log(retainer.service);
         console.log(retainer.level);
-        var deviceId = event.target.dataset.deviceId;
-        console.log(deviceId);
-        ble.read("00:07:80:A4:7C:B8", retainer.service, retainer.level, app.onTemperatureRead, app.onError);
+        console.log(device_id);
+        ble.read(device_id, retainer.service, retainer.level, app.onTemperatureRead, app.onError);
     },
     onTemperatureRead: function(data) {
         console.log(data);
-        var message;
-        var displayedData = new uint8Array(data);
-        deviceTemperature.innerHTML = "Testing innerHTML."
-        // deviceTemperature.innerHTML = displayedData[0] + ' Celcius';
+        var hex_data = new Uint16Array(data);
+        console.log('uint16_lil ' + hex_data.toString(16));
+        hex_data = convert_endian(hex_data);
+        console.log('initial ' + hex_data.toString(16));
+        hex_data = convert_endian(hex_data);
+        console.log('large_end ' + hex_data.toString(16));
+
+        var temp_data = parseInt(hex_data.toString(16), 16);
+        console.log(temp_data);
+        temp_data = ((temp_data / 16) - 1335) * (1150 / 4096);
+        console.log(temp_data);
+        deviceTemperature.innerHTML = temp_data + ' Celsius';
     },
     showMainPage: function() {
         mainPage.hidden = false;
@@ -102,5 +112,9 @@ var app = {
         alert("ERROR: " + reason); // TODO: Eventually use notification.alert
     }
 };
+
+function convert_endian(val) {
+    return ((val & 0xFF) << 8) | ((val >> 8) & 0xFF);
+}
 
 app.initialize();

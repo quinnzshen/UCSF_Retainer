@@ -19,13 +19,11 @@
 'use strict';
 
 var retainer = {
-    // 4243AB10-502D-48E6-AF3A-14C07569FEBC - CELCIUS
-    // 14343C30-EFC5-6251-5E23-0B3ADCB6E4F0 - DEVICE?
-    // service: "61744710-A6E8-11E2-9E96-0800200C9A66",
-    // level: "3CA692D0-B9A8-11E2-9E96-0800200C9A66"
     service: "61744710-a6e8-11e2-9e96-0800200c9a66",
     level: "3ca692d0-b9a8-11e2-9e96-0800200c9a66"
 };
+
+var device_id;
 
 var app = {
     // Application Constructor
@@ -66,6 +64,7 @@ var app = {
     },
     connect: function(e) {
         console.log(JSON.stringify(e.target.dataset));
+        device_id = e.target.dataset.deviceId;
         var deviceId = e.target.dataset.deviceId,
             onConnect = function() {
                 console.log('Connected :)!');
@@ -83,16 +82,20 @@ var app = {
         console.log("Calling readTemperature");
         console.log(retainer.service);
         console.log(retainer.level);
-        var deviceId = event.target.dataset.deviceId;
-        console.log(deviceId);
-        ble.read("00:07:80:A4:7C:B8", retainer.service, retainer.level, app.onTemperatureRead, app.onError);
+        console.log(device_id);
+        ble.read(device_id, retainer.service, retainer.level, app.onTemperatureRead, app.onError);
     },
     onTemperatureRead: function(data) {
         console.log(data);
-        var message;
-        var displayedData = new uint8Array(data);
-        deviceTemperature.innerHTML = "Testing innerHTML."
-        // deviceTemperature.innerHTML = displayedData[0] + ' Celcius';
+        var hex_data = new Uint16Array(data);
+        console.log(hex_data);
+        hex_data = convert_endian(hex_data);
+        console.log(hex_data);
+        var temp_data = parseInt(hex_data, 16);
+        console.log(temp_data);
+        temp_data = ((temp_data / 16) - 1335) * (1150 / 4096);
+        console.log(temp_data);
+        deviceTemperature.innerHTML = temp_data + ' Celsius';
     },
     showMainPage: function() {
         mainPage.hidden = false;
@@ -106,5 +109,9 @@ var app = {
         alert("ERROR: " + reason); // TODO: Eventually use notification.alert
     }
 };
+
+function convert_endian(val) {
+    return ((val & 0xFF) << 8) | ((val >> 8) & 0xFF);
+}
 
 app.initialize();
