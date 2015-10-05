@@ -28,10 +28,10 @@
         }
     },
     "installed_plugins": {
-        "cordova-plugin-whitelist": {
+        "cordova-plugin-ble-central": {
             "PACKAGE_NAME": "com.ucsf.smartretainer"
         },
-        "com.megster.cordova.ble": {
+        "cordova-plugin-whitelist": {
             "PACKAGE_NAME": "com.ucsf.smartretainer"
         }
     },
