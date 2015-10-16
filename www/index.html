@@ -11,14 +11,17 @@
         <div class="app">
             <p style="text-align:center; padding-top: 20px;">Choose a peripheral</p>
             <div id="mainPage">
+                <button id="refreshButton">Refresh</button>
                 <ul id="deviceList">
                 </ul>
-                <button id="refreshButton">Refresh</button>
             </div>
             <div id="detailPage">
-                <div id="deviceTemperature"></div>
-                <button id="temperatureButton">Read Temperature</button>
+                <div id="temperatureValue"></div>
+                <button id="readTemperatureButton">Read Temperature</button>
                 <button id="disconnectButton">Disconnect</button>
+                <button id="notifyTemperatureButton">Toggle Notify Temperature</button>
+                <ul id="temperatureList">
+                </ul>
             </div>
         </div>
 
@@ -26,6 +29,7 @@
         <input type="button" onclick="location.href='signup.html';" value="Go to login page." /> -->
 
         <script type="text/javascript" src="cordova.js"></script>
+        <script type="text/javascript" src="js/lib/jquery-1.11.3.js"></script>
         <script type="text/javascript" src="js/index.js"></script>
         <script type="text/javascript">
             app.initialize();
