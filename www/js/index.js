@@ -18,7 +18,7 @@
  */
 
  /* globals console, document, refreshButton, deviceList, readTemperatureButton, disconnectButton, notifyTemperatureButton,
-    pullDeviceDataButton, testDataQueryButton, ble, temperatureValue, temperatureList, detailPage, mainPage, alert */
+    pullDeviceDataButton, testButton, ble, temperatureValue, temperatureList, detailPage, mainPage, alert */
 'use strict';
 
 var retainer = {
@@ -78,6 +78,7 @@ var retainer = {
 
 
 var temperatures = [];
+var pulledData = [];
 
 var app = {
     // Application Constructor
@@ -99,7 +100,7 @@ var app = {
         disconnectButton.addEventListener('touchend', this.disconnect, false);
         notifyTemperatureButton.addEventListener('touchend', this.toggleNotifyTemperature, false);
         pullDeviceDataButton.addEventListener('touchend', this.pullDeviceData, false);
-        testDataQueryButton.addEventListener('touchend', this.testDataQuery, false);
+        testButton.addEventListener('touchend', this.testButton, false);
     },
     onDeviceReady: function() {
         app.refreshDeviceList();
@@ -183,15 +184,13 @@ var app = {
                 overwriteFlag = values[2],
                 currentIdx,
                 endIdx,
-                results1 = [],
-                results2 = [],
+                retrievedData = [],
                 asyncGetDataFromCyclicalFlash = function(currentIdx, endIdx) {
                     var p = Promise.resolve();
                     var results = [];
                     while (currentIdx <= endIdx) {
                         var wrappedFn = function(idx) { // Capture currentIdx in scope of wrappedFn for Async Execution
                             return function() { // Function Curry to make Promise Then-able
-                                console.log('Calling app.getDataFromFlash(' + currentIdx + ')');
                                 return app.getDataFromFlash(idx); // Returns a Promise Object
                             };
                         }
@@ -203,59 +202,83 @@ var app = {
                         currentIdx += 1;
                     }
                     p = p.then(function() {
-                        console.log(results)
                         return results; // Final element of Promise Chain returns results
                     })
                     .catch(app.onError);
                     return p;
                 };
-
-            console.log('readIdx: ' + readIdx + ", writeIdx: " + writeIdx + ", overwriteFlag: " + overwriteFlag);
-
-            // DEBUG: Fix Case for readIdx > writeIdx in which concatenation is not working
-            //readIdx = 123; writeIdx = 3;
-
             // Handle Various Cases of Cyclical Data Structure
-            if (readIdx === writeIdx) {
+            // If data not overwritten, pull data from readIdx-->writeIdx-1 (wrapping around cyclical boundary)
+            // If data is overwritten, pull data from writeIdx+1-->writeIdx-1 (wrapping around cyclical boundary)
+            if (readIdx === writeIdx && overwriteFlag === 0) {
+                console.log('Case A: No new data.  Do nothing.');
                 return null; // No new data. Do nothing
-            } else if (readIdx < writeIdx) {
+            } else if (readIdx < writeIdx && overwriteFlag === 0) {
+                console.log('Case B: New data.  Read: readIdx-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx);
                 currentIdx = readIdx;
                 endIdx = writeIdx - 1;
-                return asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
-            } else if (readIdx > writeIdx) {
+                retrievedData = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
+                return retrievedData;
+            } else if (readIdx > writeIdx && overwriteFlag === 0) {
+                console.log('Case C: New data.  Read: readIdx-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx );
                 return new Promise(function(resolve, reject) {
                     currentIdx = readIdx;
                     endIdx = 125;
-                    results1 = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
-                    resolve(results1);
+                    retrievedData = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
+                    resolve(retrievedData);
                 })
-                .then(function(results1) {
-                    return new Promise(function(resolve, reject) {
-                        currentIdx = 0;
-                        endIdx = writeIdx - 1;
-                        results2 = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
-                        resolve(results2);
+                .then(function(value) {
+                    retrievedData = value;
+                    currentIdx = 0;
+                    endIdx = writeIdx - 1;
+                    return asyncGetDataFromCyclicalFlash(currentIdx, endIdx)
+                    .then(function(value) {
+                        retrievedData = retrievedData.concat(value);
+                        return retrievedData;
                     })
-                })
-                .then(function() {
-                    console.log('results1: ' + JSON.stringify(results1));
-                    console.log('results2: ' + JSON.stringify(results2));
-                    var allResults = results1.concat(results2);
-                    console.log('All Results: ' + JSON.stringify(allResults));
+                    .catch(app.onError);
                 })
                 .catch(app.onError);
+            } else {
+                if (writeIdx === 125) {
+                    console.log('Case D.1: New data & overwritten.  Read: 0-->124 b/c writeIdx is 125. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx);
+                    currentIdx = 0;
+                    endIdx = 124;
+                    retrievedData = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
+                    return retrievedData;
+                } else {
+                    console.log('Case D.2: New data & overwritten.  Read: writeIdx+1-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx);
+                    return new Promise(function(resolve, reject) {
+                        currentIdx = writeIdx + 1;
+                        endIdx = 125;
+                        retrievedData = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
+                        resolve(retrievedData);
+                    })
+                    .then(function(value) {
+                        retrievedData = value;
+                        currentIdx = 0;
+                        endIdx = writeIdx - 1;
+                        return asyncGetDataFromCyclicalFlash(currentIdx, endIdx)
+                        .then(function(value) {
+                            retrievedData = retrievedData.concat(value);
+                            return retrievedData;
+                        })
+                        .catch(app.onError);
+                    })
+                    .catch(app.onError);
+                };
             };
-            // TODO: Handle Overwrite Flag
-
         })
         .then(function(array) {
             console.log('Pulled Data: ' + JSON.stringify(array));
             console.log('----------------');
+            pulledData = pulledData.concat(array);
         })
         .catch(app.onError);
     },
     getDataFromFlash: function(index) {
         return new Promise(function(resolve, reject) {
+            console.log('app.getDataFromFlash(' + index + ')');
             app.write_readIndex(index)
             .then(app.read_dataout1)
             .then(function(value) {
@@ -267,7 +290,7 @@ var app = {
             .catch(app.onError);
         });
     },
-    testDataQuery: function() {
+    testButton: function() {
     },
     read_writeIndex: function() {
         return new Promise(function(resolve, reject) {
@@ -352,9 +375,6 @@ var app = {
     onRead_dataout1: function(data) {    // Data Passed Back as ArrayBuffer Type
         return new Promise(function(resolve, reject) {
             var rawTemperature, rawTime, rawCRC, numTemperature, celsius;
-            var rawBytes = new Uint8Array(data);
-            console.log(rawBytes);
-
             // data_packet(11): [2 bytes Temp][4 bytes Pressure][4 bytes Time][1 byte CRC]
             rawTemperature = new DataView(data).getUint16(0);
             rawTime = new DataView(data).getUint16(6);
