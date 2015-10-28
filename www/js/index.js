@@ -166,7 +166,9 @@ var app = {
         rawTemperature = new Uint16Array(data);
         numTemperature = parseInt(rawTemperature[0],10);
         celsius = ((numTemperature / 16) - 1335) * (1150 / 4096);
-        console.log(celsius + ' celsius');
+        console.log('Raw Temperature: ' + rawTemperature[0].toString());
+        console.log('Num Temperature: ' + numTemperature);
+        console.log('Celsius: ' + celsius);
         temperatureValue.innerHTML = celsius.toString().substring(0,7) + '&ordm;C';
         temperatures.push(celsius);
         temperatureList.innerHTML = temperatures.join('<br/>');
@@ -331,7 +333,6 @@ var app = {
         });
     },
     read_readIndex: function() {
-        console.log('Called read_readIndex');
         return new Promise(function(resolve, reject) {
             ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid, 
                      resolve, reject);
@@ -343,7 +344,7 @@ var app = {
         return new Promise(function(resolve, reject) {
             var rawBytes = new Uint8Array(data);
             var readIndex = rawBytes[0];
-            console.log('read xgatt_readidx: ' + readIndex.toString());
+            console.log('Read xgatt_readidx: ' + readIndex.toString());
             resolve(readIndex);
         });
     },
@@ -360,7 +361,7 @@ var app = {
         return new Promise(function(resolve, reject) {
             var rawBytes = new Uint8Array(data);
             var overwriteFlag = rawBytes[0];
-            console.log('Overwrite Flag: ' + overwriteFlag.toString());
+            console.log('Read xgatt_overwrite: ' + overwriteFlag.toString());
             resolve(overwriteFlag);
         });
     },
@@ -374,89 +375,22 @@ var app = {
     },
     onRead_dataout1: function(data) {    // Data Passed Back as ArrayBuffer Type
         return new Promise(function(resolve, reject) {
-            var rawTemperature, rawTime, rawCRC, numTemperature, celsius;
+            var rawTemperature, rawTime, rawCRC, celsius;
             // data_packet(11): [2 bytes Temp][4 bytes Pressure][4 bytes Time][1 byte CRC]
-            rawTemperature = new DataView(data).getUint16(0);
-            rawTime = new DataView(data).getUint16(6);
-            rawCRC = new DataView(data).getUint8(10)
+            rawTemperature = new DataView(data).getUint16(0, true);
+            rawTime = new DataView(data).getUint16(6, true);
+            rawCRC = new DataView(data).getUint8(10, true)
 
             console.log('rawTemperature: ' + rawTemperature);
             console.log('rawTime: ' + rawTime);
             console.log('rawCRC: ' + rawCRC);
 
-            numTemperature = parseInt(rawTemperature[0],10);
-            celsius = ((numTemperature / 16) - 1335) * (1150 / 4096);
+            celsius = ((rawTemperature / 16) - 1335) * (1150 / 4096);
             console.log(celsius + ' celsius');
 
-            resolve({"rawTemperature":rawTemperature, "rawTime":rawTime, "rawCRC":rawCRC});
+            resolve({"celsius":celsius, "rawTemperature":rawTemperature, "rawTime":rawTime, "rawCRC":rawCRC});
         });
     },
-    // enableNotify_dataout1: function() {
-    //     console.log('A1: DataOut1 Notifying: ' + retainer.xgatt_dataout1.notifying);
-    //     if (!retainer.xgatt_dataout1.notifying) {
-    //         return new Promise(function(resolve, reject) {
-    //             console.log('Registering Notification for xgatt_dataout1');
-    //             ble.startNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout1.uuid,
-    //                 resolve, reject);
-    //             console.log('B: ' + retainer.xgatt_dataout1.notifying);
-    //             resolve(retainer.xgatt_dataout1.notifying); // Force Success Callback on Successful Registering for Notifications
-    //         })
-    //         .then(function(data) {
-    //             console.log('Success Callback for NotifyDataOut1');
-    //             console.log(data);
-    //             return app.onRead_dataout1(data);
-    //         })
-    //         .catch(app.onError);
-    //     } else {
-    //         return new Promise(function(resolve, reject) {
-    //             console.log('DataOut1 Notifications Already Enabled');
-    //             resolve(retainer.xgatt_dataout1.notifying);
-    //         });
-    //     }
-    // },
-    // onRead_dataout1: function(data) {
-    //     console.log('C: ' + retainer.xgatt_dataout1.notifying);
-    //     if (!retainer.xgatt_dataout1.notifying) {
-    //         // Success Callback on Successful Registering for Notifications
-    //         return new Promise(function(resolve, reject) {
-    //             retainer.xgatt_dataout1.notifying = true;
-    //             console.log('Started DataOut1 Notifications');
-    //             console.log('D: ' + retainer.xgatt_dataout1.notifying);
-    //             resolve(retainer.xgatt_dataout1.notifying);
-    //         });
-    //     } else {
-    //         // Normal Notification Callback when New Data Delivered to xgatt_dataout1
-    //         return new Promise(function(resolve, reject) {
-    //             var rawBytes = new Uint8Array(data);
-    //             console.log('DataOut1: ' + rawBytes.toString());
-    //             console.log('E: ' + retainer.xgatt_dataout1.notifying);
-    //             //resolve(rawBytes);
-    //             resolve(342);
-    //         });
-    //     }
-    // },
-    // disableNotify_dataout1: function() {
-    //     console.log('A2: DataOut1 Notifying: ' + retainer.xgatt_dataout1.notifying);
-    //     if (retainer.xgatt_dataout1.notifying) {
-    //         return new Promise(function(resolve, reject) {
-    //             ble.stopNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout1.uuid, 
-    //                 resolve, reject);
-    //             console.log('F: ' + retainer.xgatt_dataout1.notifying);
-    //         })
-    //         .then(function() {
-    //             retainer.xgatt_dataout1.notifying = false;
-    //             console.log('Unregistered Notification for xgatt_dataout1');
-    //             console.log('G: ' + retainer.xgatt_dataout1.notifying);
-    //             return retainer.xgatt_dataout1.notifying;
-    //         })
-    //         .catch(app.onError);
-    //     } else {
-    //         return new Promise(function(resolve, reject) {
-    //             console.log('DataOut1 Notifications Already Disabled');
-    //             resolve(retainer.xgatt_dataout1.notifying);
-    //         })
-    //     }
-    // },
     bytesToString: function(buffer) {
         return String.fromCharCode.apply(null, new Uint8Array(buffer));
     },
@@ -493,10 +427,14 @@ var app = {
 
 // Polyfill Functions in ES6 that are not available in ES5/Cordova
 Number.isInteger = Number.isInteger || function(value) {
-    return typeof value === "number" && 
-           isFinite(value) && 
+    return typeof value === "number" &&
+           isFinite(value) &&
            Math.floor(value) === value;
 };
+
+Number.isNumeric = Number.isNumeric || function(n) {
+    return !isNaN(parseFloat(n)) && isFinite(n);
+}
 
 // function wait(ms) {
 //     return function() {
