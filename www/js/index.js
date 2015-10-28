@@ -17,7 +17,7 @@
  * under the License.
  */
 
- /* globals console, window, document, refreshButton, deviceList, readTemperatureButton, disconnectButton, notifyTemperatureButton,
+ /* globals console, document, refreshButton, deviceList, readTemperatureButton, disconnectButton, notifyTemperatureButton,
     pullDeviceDataButton, testDataQueryButton, ble, temperatureValue, temperatureList, detailPage, mainPage, alert */
 'use strict';
 
@@ -34,27 +34,27 @@ var retainer = {
         uuid: "4243ab10-502d-48e6-af3a-14c07569febc",
         notifying: false
     },
-    xgatt_temperature: { 
+    xgatt_temperature: {
         uuid: "3ca692d0-b9a8-11e2-9e96-0800200c9a66",
         notifying: false
     },
-    xgatt_readIdx: {
+    xgatt_readidx: {
         uuid: "be2e55a0-a6e7-11e2-9e96-0800200c9a66",
         notifying: false
     },
-    xgatt_writeIdx: {
+    xgatt_writeidx: {
         uuid: "c3b2d730-a6e7-11e2-9e96-0800200c9a66",
         notifying: false
     },
-    xgatt_dataOut1: {
+    xgatt_dataout1: {
         uuid: "d3d7d610-a6e7-11e2-9e96-0800200c9a66",
         notifying: false
     },
-    xgatt_dataOut2: {
+    xgatt_dataout2: {
         uuid: "d3d7d611-a6e7-11e2-9e96-0800200c9a66",
         notifying: false
     },
-    xgatt_dataOut3: {
+    xgatt_dataout3: {
         uuid: "d3d7d712-a6e7-11e2-9e96-0800200c9a66",
         notifying: false
     },
@@ -70,7 +70,7 @@ var retainer = {
         uuid: "d3d7d618-a6e7-11e2-9e96-0800200c9a66",
         notifying: false
     },
-    xgatt_loggerType: {
+    xgatt_loggertype: {
         uuid: "67a9483c-8756-48e8-87c2-82c8aaff9242",
         notifying: false
     }
@@ -173,139 +173,183 @@ var app = {
     pullDeviceData: function() {
         console.log('Starting Pull Device Data Sequence');
         Promise.all([
-            app.readLastReadIndex(),
-            app.readLastWrittenIndex(),
-            app.readOverwriteFlag()
+            app.read_readIndex(),
+            app.read_writeIndex(),
+            app.read_overwriteFlag()
         ])
         .then(function(values) {
-            console.log('Promise All Then-ed');
-            console.log(values);
-            var readIdx = values[0], writeIdx = values[1], overwriteFlag = values[2], dataOut1_notify;
-            console.log('readIdx: ' + readIdx + ", writeIdx: " + writeIdx + ", overwriteFlag: " + overwriteFlag + ", dataOut1_notify: " + dataOut1_notify);
-            var currentIdx = readIdx;
-            console.log('Z: ' + retainer.xgatt_dataOut1.notifying);
-            while (currentIdx < writeIdx - 1) {
-                app.writeLastReadIndex(currentIdx)
-                .then(function(value) {
-                    window.setTimeout(null, 500);
+            var readIdx = values[0],
+                writeIdx = values[1],
+                overwriteFlag = values[2],
+                currentIdx,
+                endIdx,
+                results1 = [],
+                results2 = [],
+                asyncGetDataFromCyclicalFlash = function(currentIdx, endIdx) {
+                    var p = Promise.resolve();
+                    var results = [];
+                    while (currentIdx <= endIdx) {
+                        var wrappedFn = function(idx) { // Capture currentIdx in scope of wrappedFn for Async Execution
+                            return function() { // Function Curry to make Promise Then-able
+                                console.log('Calling app.getDataFromFlash(' + currentIdx + ')');
+                                return app.getDataFromFlash(idx); // Returns a Promise Object
+                            };
+                        }
+                        p = p.then(wrappedFn(currentIdx))   // While loop iterations builds Promise Chain
+                            .then(function(value) {
+                                results.push(value);    // Store result for each invocation of app.getDataFromflash(idx)
+                            })
+                            .catch(app.onError);
+                        currentIdx += 1;
+                    }
+                    p = p.then(function() {
+                        console.log(results)
+                        return results; // Final element of Promise Chain returns results
+                    })
+                    .catch(app.onError);
+                    return p;
+                };
+
+            console.log('readIdx: ' + readIdx + ", writeIdx: " + writeIdx + ", overwriteFlag: " + overwriteFlag);
+
+            // DEBUG: Fix Case for readIdx > writeIdx in which concatenation is not working
+            //readIdx = 123; writeIdx = 3;
+
+            // Handle Various Cases of Cyclical Data Structure
+            if (readIdx === writeIdx) {
+                return null; // No new data. Do nothing
+            } else if (readIdx < writeIdx) {
+                currentIdx = readIdx;
+                endIdx = writeIdx - 1;
+                return asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
+            } else if (readIdx > writeIdx) {
+                return new Promise(function(resolve, reject) {
+                    currentIdx = readIdx;
+                    endIdx = 125;
+                    results1 = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
+                    resolve(results1);
                 })
-                .then(app.readDataOut1)
-                .then(function(value) {
-                    console.log('onDataOut1Read resolve value: ' + value.rawTemperature + ' ' + value.rawTime + ' ' + value.rawCRC);
+                .then(function(results1) {
+                    return new Promise(function(resolve, reject) {
+                        currentIdx = 0;
+                        endIdx = writeIdx - 1;
+                        results2 = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
+                        resolve(results2);
+                    })
+                })
+                .then(function() {
+                    console.log('results1: ' + JSON.stringify(results1));
+                    console.log('results2: ' + JSON.stringify(results2));
+                    var allResults = results1.concat(results2);
+                    console.log('All Results: ' + JSON.stringify(allResults));
                 })
                 .catch(app.onError);
-                // TODO: make asynchronous w/ generating array of functions binding Idx & sending to Promise.all + making writeIdx - 1 be the last to be read
-                currentIdx += 1;
-            }
-            // TODO: cannot have while loop that asynchronously reads a single characteristic
-            // DataOut shifting functionality works, but we need to always wait for dataout to come back before incrementing loop & reading next one
+            };
+            // TODO: Handle Overwrite Flag
+
         })
-        .catch(app.onError);
-        // TODO: Change all xgatt_ to lowercase again to be consistent w/ orthodonticslogger code
-    },
-    testDataQuery: function() {
-        app.writeLastReadIndex(9)
-        .then(function(value) {
-            console.log('writeLastReadIndex(9) Result: ' + value);
-            return app.readDataOut1();
-        })
-        .then(function(value) {
-            console.log('onDataOut1Read resolve value: ' + value.rawTemperature + ' ' + value.rawTime + ' ' + value.rawCRC);
-            return app.writeLastReadIndex(10);
-        })
-        .then(function(value) {
-            console.log('writeLastReadIndex(10) Result: ' + value);
-            return app.readDataOut1();
-        })
-        .then(function(value) {
-            console.log('onDataOut1Read resolve value: ' + value.rawTemperature + ' ' + value.rawTime + ' ' + value.rawCRC);
+        .then(function(array) {
+            console.log('Pulled Data: ' + JSON.stringify(array));
+            console.log('----------------');
         })
         .catch(app.onError);
     },
-    readLastWrittenIndex: function() {
-        console.log('Called readLastWrittenIndex');
+    getDataFromFlash: function(index) {
         return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_writeIdx.uuid,
-                     resolve, reject)
-        })
-        .then(app.onLastWrittenIndexRead)
-        .catch(app.onError);
-    },
-    onLastWrittenIndexRead: function(data) {
-        return new Promise(function(resolve, reject) {
-            var rawBytes = new Uint8Array(data);
-            console.log('Last Written Index: ' + rawBytes[0].toString());
-            console.log(rawBytes);
-            var lastWrittenIndex = rawBytes[0];
-            resolve(lastWrittenIndex);
+            app.write_readIndex(index)
+            .then(app.read_dataout1)
+            .then(function(value) {
+                console.log('onRead_dataout1 for index: ' + index + ' resolve value: ' + value.rawTemperature + ' ' + value.rawTime + ' ' + value.rawCRC);
+                console.log('-----');
+                value['index'] = index;
+                resolve(value);
+            })
+            .catch(app.onError);
         });
     },
-    writeLastReadIndex: function(number) {
+    testDataQuery: function() {
+    },
+    read_writeIndex: function() {
+        return new Promise(function(resolve, reject) {
+            console.log('Called read_writeIndex');
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_writeidx.uuid,
+                     resolve, reject)
+        })
+        .then(app.onRead_writeIndex)
+        .catch(app.onError);
+    },
+    onRead_writeIndex: function(data) {
+        return new Promise(function(resolve, reject) {
+            var rawBytes = new Uint8Array(data);
+            var writeIndex = rawBytes[0];
+            console.log('Read xgatt_writeidx: ' + writeIndex.toString());
+            resolve(writeIndex);
+        });
+    },
+    write_readIndex: function(number) {
         return new Promise(function(resolve, reject) {
             //Only takes integers 0-125 to index into the cyclical flash data structure on device
             if (!(Number.isInteger(number) && number >= 0 && number <= 125)) {
                 this.reject(new Error('The "Read Index" must be an integer and must be between 0-125'));
             }
             var data = new Uint8Array([number, 0x80]);
-            ble.write(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readIdx.uuid, data.buffer,
+            ble.write(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid, data.buffer,
                 resolve(number), reject);
         })
         .then(function(index) {
-            return app.onLastReadIndexWrite(index);
+            return app.onWrite_readIndex(index);
         })
         .catch(app.onError);
     },
-    onLastReadIndexWrite: function(index) {
+    onWrite_readIndex: function(index) {
         return new Promise(function(resolve, reject) {
-            console.log('Wrote xgatt_readIdx: ' + index);
+            console.log('Wrote xgatt_readidx: ' + index);
             resolve(index);
         });
     },
-    readLastReadIndex: function() {
-        console.log('Called readLastReadIndex');
+    read_readIndex: function() {
+        console.log('Called read_readIndex');
         return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readIdx.uuid, 
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid, 
                      resolve, reject);
         })
-        .then(app.onLastReadIndexRead)
+        .then(app.onRead_readIndex)
         .catch(app.onError);
     },
-    onLastReadIndexRead: function(data) {
+    onRead_readIndex: function(data) {
         return new Promise(function(resolve, reject) {
             var rawBytes = new Uint8Array(data);
-            console.log('Last Read Index: ' + rawBytes[0].toString());
-            console.log(rawBytes);
-            var lastReadIndex = rawBytes[0];
-            resolve(lastReadIndex);
+            var readIndex = rawBytes[0];
+            console.log('read xgatt_readidx: ' + readIndex.toString());
+            resolve(readIndex);
         });
     },
-    readOverwriteFlag: function() {
-        console.log('Called readOverwriteFlag');
+    read_overwriteFlag: function() {
+        console.log('Called read_overwriteFlag');
         return new Promise(function(resolve, reject) {
             ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_overwrite.uuid, 
                 resolve, reject);
         })
-        .then(app.onOverwriteFlagRead)
+        .then(app.onRead_overwriteFlag)
         .catch(app.onError);
     },
-    onOverwriteFlagRead: function(data) {
+    onRead_overwriteFlag: function(data) {
         return new Promise(function(resolve, reject) {
             var rawBytes = new Uint8Array(data);
-            console.log('Overwrite Flag: ' + rawBytes[0].toString());
             var overwriteFlag = rawBytes[0];
+            console.log('Overwrite Flag: ' + overwriteFlag.toString());
             resolve(overwriteFlag);
         });
     },
-    readDataOut1: function() {
+    read_dataout1: function() {
         return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataOut1.uuid,
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout1.uuid,
                 resolve, reject);
         })
-        .then(app.onDataOut1Read)
+        .then(app.onRead_dataout1)
         .catch(app.onError);
     },
-    onDataOut1Read: function(data) {    // Data Passed Back as ArrayBuffer Type
-        console.log('onDataOut1Read');
+    onRead_dataout1: function(data) {    // Data Passed Back as ArrayBuffer Type
         return new Promise(function(resolve, reject) {
             var rawTemperature, rawTime, rawCRC, numTemperature, celsius;
             var rawBytes = new Uint8Array(data);
@@ -327,69 +371,69 @@ var app = {
             resolve({"rawTemperature":rawTemperature, "rawTime":rawTime, "rawCRC":rawCRC});
         });
     },
-    // enableNotifyDataOut1: function() {
-    //     console.log('A1: DataOut1 Notifying: ' + retainer.xgatt_dataOut1.notifying);
-    //     if (!retainer.xgatt_dataOut1.notifying) {
+    // enableNotify_dataout1: function() {
+    //     console.log('A1: DataOut1 Notifying: ' + retainer.xgatt_dataout1.notifying);
+    //     if (!retainer.xgatt_dataout1.notifying) {
     //         return new Promise(function(resolve, reject) {
-    //             console.log('Registering Notification for xgatt_dataOut1');
-    //             ble.startNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataOut1.uuid,
+    //             console.log('Registering Notification for xgatt_dataout1');
+    //             ble.startNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout1.uuid,
     //                 resolve, reject);
-    //             console.log('B: ' + retainer.xgatt_dataOut1.notifying);
-    //             resolve(retainer.xgatt_dataOut1.notifying); // Force Success Callback on Successful Registering for Notifications
+    //             console.log('B: ' + retainer.xgatt_dataout1.notifying);
+    //             resolve(retainer.xgatt_dataout1.notifying); // Force Success Callback on Successful Registering for Notifications
     //         })
     //         .then(function(data) {
     //             console.log('Success Callback for NotifyDataOut1');
     //             console.log(data);
-    //             return app.onDataOut1Read(data);
+    //             return app.onRead_dataout1(data);
     //         })
     //         .catch(app.onError);
     //     } else {
     //         return new Promise(function(resolve, reject) {
     //             console.log('DataOut1 Notifications Already Enabled');
-    //             resolve(retainer.xgatt_dataOut1.notifying);
+    //             resolve(retainer.xgatt_dataout1.notifying);
     //         });
     //     }
     // },
-    // onDataOut1Read: function(data) {
-    //     console.log('C: ' + retainer.xgatt_dataOut1.notifying);
-    //     if (!retainer.xgatt_dataOut1.notifying) {
+    // onRead_dataout1: function(data) {
+    //     console.log('C: ' + retainer.xgatt_dataout1.notifying);
+    //     if (!retainer.xgatt_dataout1.notifying) {
     //         // Success Callback on Successful Registering for Notifications
     //         return new Promise(function(resolve, reject) {
-    //             retainer.xgatt_dataOut1.notifying = true;
+    //             retainer.xgatt_dataout1.notifying = true;
     //             console.log('Started DataOut1 Notifications');
-    //             console.log('D: ' + retainer.xgatt_dataOut1.notifying);
-    //             resolve(retainer.xgatt_dataOut1.notifying);
+    //             console.log('D: ' + retainer.xgatt_dataout1.notifying);
+    //             resolve(retainer.xgatt_dataout1.notifying);
     //         });
     //     } else {
-    //         // Normal Notification Callback when New Data Delivered to xgatt_dataOut1
+    //         // Normal Notification Callback when New Data Delivered to xgatt_dataout1
     //         return new Promise(function(resolve, reject) {
     //             var rawBytes = new Uint8Array(data);
     //             console.log('DataOut1: ' + rawBytes.toString());
-    //             console.log('E: ' + retainer.xgatt_dataOut1.notifying);
+    //             console.log('E: ' + retainer.xgatt_dataout1.notifying);
     //             //resolve(rawBytes);
     //             resolve(342);
     //         });
     //     }
     // },
-    // disableNotifyDataOut1: function() {
-    //     console.log('A2: DataOut1 Notifying: ' + retainer.xgatt_dataOut1.notifying);
-    //     if (retainer.xgatt_dataOut1.notifying) {
+    // disableNotify_dataout1: function() {
+    //     console.log('A2: DataOut1 Notifying: ' + retainer.xgatt_dataout1.notifying);
+    //     if (retainer.xgatt_dataout1.notifying) {
     //         return new Promise(function(resolve, reject) {
-    //             ble.stopNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataOut1.uuid, 
+    //             ble.stopNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout1.uuid, 
     //                 resolve, reject);
-    //             console.log('F: ' + retainer.xgatt_dataOut1.notifying);
+    //             console.log('F: ' + retainer.xgatt_dataout1.notifying);
     //         })
     //         .then(function() {
-    //             retainer.xgatt_dataOut1.notifying = false;
-    //             console.log('Unregistered Notification for xgatt_dataOut1');
-    //             console.log('G: ' + retainer.xgatt_dataOut1.notifying);
-    //             return retainer.xgatt_dataOut1.notifying;
+    //             retainer.xgatt_dataout1.notifying = false;
+    //             console.log('Unregistered Notification for xgatt_dataout1');
+    //             console.log('G: ' + retainer.xgatt_dataout1.notifying);
+    //             return retainer.xgatt_dataout1.notifying;
     //         })
     //         .catch(app.onError);
     //     } else {
     //         return new Promise(function(resolve, reject) {
     //             console.log('DataOut1 Notifications Already Disabled');
-    //             resolve(retainer.xgatt_dataOut1.notifying);
+    //             resolve(retainer.xgatt_dataout1.notifying);
     //         })
     //     }
     // },
@@ -433,5 +477,15 @@ Number.isInteger = Number.isInteger || function(value) {
            isFinite(value) && 
            Math.floor(value) === value;
 };
+
+// function wait(ms) {
+//     return function() {
+//         return new Promise(function(resolve, reject) {
+//             window.setTimeout(function() {
+//                 resolve();
+//             }, ms);
+//         });
+//     }
+// };
 
 app.initialize();
