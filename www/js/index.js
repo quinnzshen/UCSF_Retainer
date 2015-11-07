@@ -96,9 +96,9 @@ var app = {
         refreshButton.addEventListener('touchend', this.refreshDeviceList, false);
         deviceList.addEventListener('touchend', this.connect, false);
 
-        readTemperatureButton.addEventListener('touchend', this.readTemperature, false);
+        readTemperatureButton.addEventListener('touchend', this.read_temperature, false);
         disconnectButton.addEventListener('touchend', this.disconnect, false);
-        notifyTemperatureButton.addEventListener('touchend', this.toggleNotifyTemperature, false);
+        notifyTemperatureButton.addEventListener('touchend', this.toggleNotify_temperature, false);
         pullDeviceDataButton.addEventListener('touchend', this.pullDeviceData, false);
         testButton.addEventListener('touchend', this.testButton, false);
     },
@@ -135,43 +135,6 @@ var app = {
         };
         ble.disconnect(retainer.device_uuid, onDisconnect, app.onError);
         // TODO: Extend error handling on disconnect to handle cases in which spontaneous d/c occurs
-    },
-    readTemperature: function(event) {
-        console.log('Calling readTemperature');
-        ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid, 
-                 app.onTemperatureRead, app.onError);
-    },
-    toggleNotifyTemperature: function(e) {
-        if (!retainer.xgatt_temperature.notifying) {
-            console.log('Registering Notification for xgatt_temperature');
-            ble.startNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid, function(data) {
-                if (!retainer.xgatt_temperature.notifying) {
-                    retainer.xgatt_temperature.notifying = true;
-                    notifyTemperatureButton.innerHTML = 'Stop Notifications';
-                    console.log('Started Temperature Notifications');
-                }
-                app.onTemperatureRead(data);
-            }, app.onError);
-        } else{
-            console.log('Unregistering Notification for xgatt_temperature');
-            ble.stopNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid, function() {
-                retainer.xgatt_temperature.notifying = false;
-                notifyTemperatureButton.innerHTML = 'Start Notifications';
-                console.log('Stopped Temperature Notifications');
-            }, app.onError);
-        };
-    },
-    onTemperatureRead: function(data) {
-        var rawTemperature, numTemperature, celsius;
-        rawTemperature = new Uint16Array(data);
-        numTemperature = parseInt(rawTemperature[0],10);
-        celsius = ((numTemperature / 16) - 1335) * (1150 / 4096);
-        console.log('Raw Temperature: ' + rawTemperature[0].toString());
-        console.log('Num Temperature: ' + numTemperature);
-        console.log('Celsius: ' + celsius);
-        temperatureValue.innerHTML = celsius.toString().substring(0,7) + '&ordm;C';
-        temperatures.push(celsius);
-        temperatureList.innerHTML = temperatures.join('<br/>');
     },
     pullDeviceData: function() {
         console.log('Starting Pull Device Data Sequence');
@@ -216,13 +179,13 @@ var app = {
                 console.log('Case A: No new data.  Do nothing.');
                 return null; // No new data. Do nothing
             } else if (readIdx < writeIdx && overwriteFlag === 0) {
-                console.log('Case B: New data.  Read: readIdx-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx);
+                console.log('Case B: New data.  Read: readIdx-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                 currentIdx = readIdx;
                 endIdx = writeIdx - 1;
                 retrievedData = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
                 return retrievedData;
             } else if (readIdx > writeIdx && overwriteFlag === 0) {
-                console.log('Case C: New data.  Read: readIdx-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx );
+                console.log('Case C: New data.  Read: readIdx-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                 return new Promise(function(resolve, reject) {
                     currentIdx = readIdx;
                     endIdx = 125;
@@ -243,13 +206,13 @@ var app = {
                 .catch(app.onError);
             } else {
                 if (writeIdx === 125) {
-                    console.log('Case D.1: New data & overwritten.  Read: 0-->124 b/c writeIdx is 125. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx);
+                    console.log('Case D.1: New data & overwritten.  Read: 0-->124 b/c writeIdx is 125. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                     currentIdx = 0;
                     endIdx = 124;
                     retrievedData = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
                     return retrievedData;
                 } else {
-                    console.log('Case D.2: New data & overwritten.  Read: writeIdx+1-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx);
+                    console.log('Case D.2: New data & overwritten.  Read: writeIdx+1-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                     return new Promise(function(resolve, reject) {
                         currentIdx = writeIdx + 1;
                         endIdx = 125;
@@ -293,12 +256,113 @@ var app = {
         });
     },
     testButton: function() {
+        var date = new Date();
+        console.log(date);
+
+        var deviceTime = app.read_time()
+        .then(function(value) {
+            console.log('1) completed app.read_time: ' + value);
+            return value;
+        })
+        .then(function() {
+            console.log('Before 2: Calling app.write_time(seconds)');
+            return app.write_time(date);
+        })
+        .then(function(value) {
+            console.log('2) completed app.write_time: ' + value);
+            return value;
+        })
+        .then(function() {
+            console.log('Before 3: Calling app.read_time()');
+            return app.read_time();
+        })
+        .then(function(value) {
+            console.log('3) completed app.read_time: ' + value);
+            return value;
+        })
+        .catch(app.onError);
+
+        return deviceTime;
+    },
+    read_time: function() {
+        return new Promise(function(resolve, reject) {
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_time.uuid,
+                resolve, reject);
+        })
+        .then(app.onRead_time)
+        .catch(app.onError);
+    },
+    onRead_time: function(data) {
+        return new Promise(function(resolve, reject) {
+            var unixTime = new DataView(data).getUint32(0, true);
+            var date = new Date(unixTime*1000);
+            console.log('Read xgatt_time. Unix Time: ' + unixTime + ',  Date: ' + date.toJSON());
+            resolve(date);
+        });
+    },
+    write_time: function(date) {    // date is Javascript Date Object
+        return new Promise(function(resolve, reject) {
+            var unixTime = Math.floor(date.getTime()/1000); // Unix Time is specified in seconds since Jan 1, 1970
+            var data = new Uint32Array([unixTime]);
+            ble.write(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_time.uuid, data.buffer,
+                resolve(date), reject);
+        })
+        .then(function(date) {
+            return app.onWrite_time(date);
+        })
+        .catch(app.onError);
+    },
+    onWrite_time: function(date) {  // date is Javascript Date Object
+        return new Promise(function(resolve, reject) {
+            var unixTime = Math.floor(date.getTime()/1000); // Unix Time is specified in seconds since Jan 1, 1970d
+            var writtenDate = new Date(unixTime*1000);      // writtenDate truncates millisecond precision from date
+            console.log('Wrote xgatt_time. Unix Time: ' + unixTime + ',  Date: ' + writtenDate.toJSON());
+            resolve(writtenDate);
+        });
+    },
+    read_temperature: function(event) {
+        ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
+                 app.onRead_temperature, app.onError);
+    },
+    toggleNotify_temperature: function(e) {
+        if (!retainer.xgatt_temperature.notifying) {
+            console.log('Registering Notification for xgatt_temperature');
+            ble.startNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
+                function(data) {
+                    if (!retainer.xgatt_temperature.notifying) {
+                        retainer.xgatt_temperature.notifying = true;
+                        notifyTemperatureButton.innerHTML = 'Stop Notifications';
+                        console.log('Started Temperature Notifications');
+                    }
+                    app.onRead_temperature(data);
+                }, app.onError);
+        } else{
+            console.log('Unregistering Notification for xgatt_temperature');
+            ble.stopNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
+                function() {
+                    retainer.xgatt_temperature.notifying = false;
+                    notifyTemperatureButton.innerHTML = 'Start Notifications';
+                    console.log('Stopped Temperature Notifications');
+                }, app.onError);
+        };
+    },
+    onRead_temperature: function(data) {
+        var rawTemperature, numTemperature, celsius;
+        rawTemperature = new Uint16Array(data);
+        numTemperature = parseInt(rawTemperature[0],10);
+        celsius = ((numTemperature / 16) - 1335) * (1150 / 4096);
+        console.log('Raw Temperature: ' + rawTemperature[0].toString());
+        console.log('Num Temperature: ' + numTemperature);
+        console.log('Celsius: ' + celsius);
+        temperatureValue.innerHTML = celsius.toString().substring(0,7) + '&ordm;C';
+        temperatures.push(celsius);
+        temperatureList.innerHTML = temperatures.join('<br/>');
+        return celsius;
     },
     read_writeIndex: function() {
         return new Promise(function(resolve, reject) {
-            console.log('Called read_writeIndex');
             ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_writeidx.uuid,
-                     resolve, reject)
+                resolve, reject);
         })
         .then(app.onRead_writeIndex)
         .catch(app.onError);
@@ -334,8 +398,8 @@ var app = {
     },
     read_readIndex: function() {
         return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid, 
-                     resolve, reject);
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid,
+                resolve, reject);
         })
         .then(app.onRead_readIndex)
         .catch(app.onError);
@@ -349,8 +413,8 @@ var app = {
         });
     },
     read_overwriteFlag: function() {
-        console.log('Called read_overwriteFlag');
         return new Promise(function(resolve, reject) {
+            console.log('Called read_overwriteFlag');
             ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_overwrite.uuid, 
                 resolve, reject);
         })
@@ -360,8 +424,8 @@ var app = {
     onRead_overwriteFlag: function(data) {
         return new Promise(function(resolve, reject) {
             var rawBytes = new Uint8Array(data);
-            var overwriteFlag = rawBytes[0];
-            console.log('Read xgatt_overwrite: ' + overwriteFlag.toString());
+            var overwriteFlag = Boolean(rawBytes[0]);
+            console.log('Read xgatt_overwrite: ' + overwriteFlag);
             resolve(overwriteFlag);
         });
     },
