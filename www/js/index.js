@@ -107,7 +107,8 @@ var app = {
     },
     refreshDeviceList: function() {
         deviceList.innerHTML = '';
-        ble.scan([], 5, app.onDiscoverDevice, app.onError);
+        ble.scan([retainer.xgatt_service.uuid], 5, app.onDiscoverDevice, app.onError);
+        // TODO: Change to startScan & stopScan when move away page
     },
     onDiscoverDevice: function(device) {
         console.log(JSON.stringify(device));
@@ -127,6 +128,7 @@ var app = {
             app.showDetailPage();
         };
         ble.connect(retainer.device_uuid, onConnect, app.onError);
+        // TODO: Promisify ble.connect, onConnect... write current time into xgatt_time
     },
     disconnect: function(event) {
         var onDisconnect = function() {
@@ -135,6 +137,7 @@ var app = {
         };
         ble.disconnect(retainer.device_uuid, onDisconnect, app.onError);
         // TODO: Extend error handling on disconnect to handle cases in which spontaneous d/c occurs
+        // TODO: Detect spontaneous d/c & then remove detailPage, show mainPage
     },
     pullDeviceData: function() {
         console.log('Starting Pull Device Data Sequence');
