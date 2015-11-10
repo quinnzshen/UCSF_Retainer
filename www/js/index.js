@@ -94,10 +94,10 @@ var app = {
         document.addEventListener('deviceready', this.onDeviceReady, false);
 
         refreshButton.addEventListener('touchend', this.refreshDeviceList, false);
-        deviceList.addEventListener('touchend', this.connect, false);
+        deviceList.addEventListener('touchend', this.touchDeviceListElement, false);
 
         readTemperatureButton.addEventListener('touchend', this.read_temperature, false);
-        disconnectButton.addEventListener('touchend', this.disconnect, false);
+        disconnectButton.addEventListener('touchend', this.touchDisconnectButton, false);
         notifyTemperatureButton.addEventListener('touchend', this.toggleNotify_temperature, false);
         pullDeviceDataButton.addEventListener('touchend', this.pullDeviceData, false);
         testButton.addEventListener('touchend', this.testButton, false);
@@ -120,22 +120,51 @@ var app = {
         listItem.innerHTML = html;
         deviceList.appendChild(listItem);
     },
-    connect: function(e) {
-        console.log(JSON.stringify(e.target.dataset));
+    touchDeviceListElement: function(e) {
+        console.log(JSON.stringify(e.target.dataset.deviceId));
         retainer.device_uuid = e.target.dataset.deviceId;
-        var onConnect = function() {
-            console.log('Connected: ' + retainer.device_uuid);
-            app.showDetailPage();
-        };
-        ble.connect(retainer.device_uuid, onConnect, app.onError);
-        // TODO: Promisify ble.connect, onConnect... write current time into xgatt_time
+        app.connect(retainer.device_uuid)
+            .then(function(info) { // On Each Connection, Update Device Time
+                var date = new Date();
+                app.write_time(date);
+            })
+            .then(app.read_time)
+            .then(app.showDetailPage)
+            .catch(app.onError);
     },
-    disconnect: function(event) {
-        var onDisconnect = function() {
-            console.log('Disconnected: ' + retainer.device_uuid);
-            app.showMainPage();
+    touchDisconnectButton: function(e) {
+        console.log(JSON.stringify(e.target.dataset));
+        console.log(JSON.stringify(e));
+        app.disconnect(retainer.device_uuid)
+            .then(app.showMainPage)
+            .catch(app.onError);
+    },
+    connect: function(device_uuid) {
+        var onConnect = function(info) {
+            return new Promise(function(resolve, reject) {
+                console.log('Connected: ' + device_uuid);
+                resolve(info);
+            });
         };
-        ble.disconnect(retainer.device_uuid, onDisconnect, app.onError);
+        return new Promise(function(resolve, reject) {
+            ble.connect(device_uuid, resolve, reject);
+        })
+        .then(onConnect)
+        .catch(app.onError);
+    },
+    disconnect: function(device_uuid) {
+        var onDisconnect = function() {
+            return new Promise(function(resolve, reject) {
+                console.log('Disconnected: ' + device_uuid);
+                resolve(device_uuid);
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            ble.disconnect(device_uuid, resolve, reject);
+        })
+        .then(onDisconnect)
+        .catch(app.onError);
+        
         // TODO: Extend error handling on disconnect to handle cases in which spontaneous d/c occurs
         // TODO: Detect spontaneous d/c & then remove detailPage, show mainPage
     },
@@ -153,7 +182,7 @@ var app = {
                 currentIdx,
                 endIdx,
                 retrievedData = [],
-                asyncGetDataFromCyclicalFlash = function(currentIdx, endIdx) {
+                asyncGetDataFromFlashRange = function(currentIdx, endIdx) {
                     var p = Promise.resolve();
                     var results = [];
                     while (currentIdx <= endIdx) {
@@ -185,21 +214,21 @@ var app = {
                 console.log('Case B: New data.  Read: readIdx-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                 currentIdx = readIdx;
                 endIdx = writeIdx - 1;
-                retrievedData = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
+                retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
                 return retrievedData;
             } else if (readIdx > writeIdx && overwriteFlag === 0) {
                 console.log('Case C: New data.  Read: readIdx-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                 return new Promise(function(resolve, reject) {
                     currentIdx = readIdx;
                     endIdx = 125;
-                    retrievedData = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
+                    retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
                     resolve(retrievedData);
                 })
                 .then(function(value) {
                     retrievedData = value;
                     currentIdx = 0;
                     endIdx = writeIdx - 1;
-                    return asyncGetDataFromCyclicalFlash(currentIdx, endIdx)
+                    return asyncGetDataFromFlashRange(currentIdx, endIdx)
                     .then(function(value) {
                         retrievedData = retrievedData.concat(value);
                         return retrievedData;
@@ -212,21 +241,21 @@ var app = {
                     console.log('Case D.1: New data & overwritten.  Read: 0-->124 b/c writeIdx is 125. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                     currentIdx = 0;
                     endIdx = 124;
-                    retrievedData = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
+                    retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
                     return retrievedData;
                 } else {
                     console.log('Case D.2: New data & overwritten.  Read: writeIdx+1-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                     return new Promise(function(resolve, reject) {
                         currentIdx = writeIdx + 1;
                         endIdx = 125;
-                        retrievedData = asyncGetDataFromCyclicalFlash(currentIdx, endIdx);
+                        retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
                         resolve(retrievedData);
                     })
                     .then(function(value) {
                         retrievedData = value;
                         currentIdx = 0;
                         endIdx = writeIdx - 1;
-                        return asyncGetDataFromCyclicalFlash(currentIdx, endIdx)
+                        return asyncGetDataFromFlashRange(currentIdx, endIdx)
                         .then(function(value) {
                             retrievedData = retrievedData.concat(value);
                             return retrievedData;
