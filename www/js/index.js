@@ -92,13 +92,11 @@ var app = {
     // 'load', 'deviceready', 'offline', and 'online'.
     bindEvents: function() {
         document.addEventListener('deviceready', this.onDeviceReady, false);
-
         refreshButton.addEventListener('touchend', this.refreshDeviceList, false);
         deviceList.addEventListener('touchend', this.touchDeviceListElement, false);
-
-        readTemperatureButton.addEventListener('touchend', this.read_temperature, false);
+        readTemperatureButton.addEventListener('touchend', this.touchTemperatureButton, false);
         disconnectButton.addEventListener('touchend', this.touchDisconnectButton, false);
-        notifyTemperatureButton.addEventListener('touchend', this.toggleNotify_temperature, false);
+        notifyTemperatureButton.addEventListener('touchend', this.touchTemperatureNotifyButton, false);
         pullDeviceDataButton.addEventListener('touchend', this.pullDeviceData, false);
         testButton.addEventListener('touchend', this.testButton, false);
     },
@@ -123,57 +121,79 @@ var app = {
     touchDeviceListElement: function(e) {
         console.log(JSON.stringify(e.target.dataset.deviceId));
         retainer.device_uuid = e.target.dataset.deviceId;
-        app.connect(retainer.device_uuid)
+        able.connect(retainer.device_uuid)
             .then(function(info) { // On Each Connection, Update Device Time
                 var date = new Date();
-                app.write_time(date);
+                able.write_time(date);
             })
-            .then(app.read_time)
+            .then(able.read_time)
             .then(app.showDetailPage)
             .catch(app.onError);
     },
     touchDisconnectButton: function(e) {
         console.log(JSON.stringify(e.target.dataset));
         console.log(JSON.stringify(e));
-        app.disconnect(retainer.device_uuid)
+        able.disconnect(retainer.device_uuid)
             .then(app.showMainPage)
             .catch(app.onError);
     },
-    connect: function(device_uuid) {
-        var onConnect = function(info) {
-            return new Promise(function(resolve, reject) {
-                console.log('Connected: ' + device_uuid);
-                resolve(info);
-            });
-        };
-        return new Promise(function(resolve, reject) {
-            ble.connect(device_uuid, resolve, reject);
-        })
-        .then(onConnect)
-        .catch(app.onError);
+    touchTemperatureButton: function() {
+        able.read_temperature()
+        .then(function(result) {
+            console.log(result);
+            temperatureValue.innerHTML = result.celsius.toString().substring(0, 7) + '&ordm;C';
+            temperatures.push(result.celsius);
+            temperatureList.innerHTML = temperatures.join('<br/>');
+        });
     },
-    disconnect: function(device_uuid) {
-        var onDisconnect = function() {
-            return new Promise(function(resolve, reject) {
-                console.log('Disconnected: ' + device_uuid);
-                resolve(device_uuid);
-            });
+    touchTemperatureNotifyButton: function() {
+        console.log('touchTemperatureNotifyButton');
+        var updateUIOnNotification = function(value) {
+            console.log('C');
+            console.log(value);
+            temperatureValue.innerHTML = value.celsius.toString().substring(0, 7) + '&ordm;C';
+            temperatures.push(value.celsius);
+            temperatureList.innerHTML = temperatures.join('<br/>');
+        }
+
+        if (!retainer.xgatt_temperature.notifying) {
+            console.log('A');
+            able.startNotify_temperature(updateUIOnNotification)
+            .then(function(value) {
+                console.log('B');
+                if(retainer.xgatt_temperature.notifying) {
+                    notifyTemperatureButton.innerHTML = 'Stop Notifications';
+                }
+            })
+            .catch(app.onError);
+        } else {
+            console.log('D');
+            able.stopNotify_temperature()
+            .then(function(value) {
+                notifyTemperatureButton.innerHTML = 'Start Notifications';
+            })
+            .catch(app.onError);
         };
-        return new Promise(function(resolve, reject) {
-            ble.disconnect(device_uuid, resolve, reject);
-        })
-        .then(onDisconnect)
-        .catch(app.onError);
-        
-        // TODO: Extend error handling on disconnect to handle cases in which spontaneous d/c occurs
-        // TODO: Detect spontaneous d/c & then remove detailPage, show mainPage
+
+        // able.toggleNotify_temperature()
+        // .then(function(value) {
+        //     if (!value) {   // false value means stopped notifying
+        //         notifyTemperatureButton.innerHTML = 'Start Notifications';
+        //     } else {        // otherwise, value contains temperature data
+        //         console.log(result);
+        //         temperatureValue.innerHTML = result.celsius.toString().substring(0, 7) + '&ordm;C';
+        //         temperatures.push(result.celsius);
+        //         temperatureList.innerHTML = temperatures.join('<br/>');
+        //         notifyTemperatureButton.innerHTML = 'Stop Notifications';
+        //     }
+        // });
     },
     pullDeviceData: function() {
         console.log('Starting Pull Device Data Sequence');
         Promise.all([
-            app.read_readIndex(),
-            app.read_writeIndex(),
-            app.read_overwriteFlag()
+            able.read_readIndex(),
+            able.read_writeIndex(),
+            able.read_overwriteFlag()
         ])
         .then(function(values) {
             var readIdx = values[0],
@@ -276,8 +296,8 @@ var app = {
     getDataFromFlash: function(index) {
         return new Promise(function(resolve, reject) {
             console.log('app.getDataFromFlash(' + index + ')');
-            app.write_readIndex(index)
-            .then(app.read_dataout1)
+            able.write_readIndex(index)
+            .then(able.read_dataout1)
             .then(function(value) {
                 console.log('onRead_dataout1 for index: ' + index + ' resolve value: ' + value.rawTemperature + ' ' + value.rawTime + ' ' + value.rawCRC);
                 console.log('-----');
@@ -291,14 +311,14 @@ var app = {
         var date = new Date();
         console.log(date);
 
-        var deviceTime = app.read_time()
+        var deviceTime = able.read_time()
         .then(function(value) {
             console.log('1) completed app.read_time: ' + value);
             return value;
         })
         .then(function() {
             console.log('Before 2: Calling app.write_time(seconds)');
-            return app.write_time(date);
+            return able.write_time(date);
         })
         .then(function(value) {
             console.log('2) completed app.write_time: ' + value);
@@ -306,7 +326,7 @@ var app = {
         })
         .then(function() {
             console.log('Before 3: Calling app.read_time()');
-            return app.read_time();
+            return able.read_time();
         })
         .then(function(value) {
             console.log('3) completed app.read_time: ' + value);
@@ -315,187 +335,6 @@ var app = {
         .catch(app.onError);
 
         return deviceTime;
-    },
-    read_time: function() {
-        return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_time.uuid,
-                resolve, reject);
-        })
-        .then(app.onRead_time)
-        .catch(app.onError);
-    },
-    onRead_time: function(data) {
-        return new Promise(function(resolve, reject) {
-            var unixTime = new DataView(data).getUint32(0, true);
-            var date = new Date(unixTime*1000);
-            console.log('Read xgatt_time. Unix Time: ' + unixTime + ',  Date: ' + date.toJSON());
-            resolve(date);
-        });
-    },
-    write_time: function(date) {    // date is Javascript Date Object
-        return new Promise(function(resolve, reject) {
-            var unixTime = Math.floor(date.getTime()/1000); // Unix Time is specified in seconds since Jan 1, 1970
-            var data = new Uint32Array([unixTime]);
-            ble.write(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_time.uuid, data.buffer,
-                resolve(date), reject);
-        })
-        .then(function(date) {
-            return app.onWrite_time(date);
-        })
-        .catch(app.onError);
-    },
-    onWrite_time: function(date) {  // date is Javascript Date Object
-        return new Promise(function(resolve, reject) {
-            var unixTime = Math.floor(date.getTime()/1000); // Unix Time is specified in seconds since Jan 1, 1970d
-            var writtenDate = new Date(unixTime*1000);      // writtenDate truncates millisecond precision from date
-            console.log('Wrote xgatt_time. Unix Time: ' + unixTime + ',  Date: ' + writtenDate.toJSON());
-            resolve(writtenDate);
-        });
-    },
-    read_temperature: function(event) {
-        ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
-                 app.onRead_temperature, app.onError);
-    },
-    toggleNotify_temperature: function(e) {
-        if (!retainer.xgatt_temperature.notifying) {
-            console.log('Registering Notification for xgatt_temperature');
-            ble.startNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
-                function(data) {
-                    if (!retainer.xgatt_temperature.notifying) {
-                        retainer.xgatt_temperature.notifying = true;
-                        notifyTemperatureButton.innerHTML = 'Stop Notifications';
-                        console.log('Started Temperature Notifications');
-                    }
-                    app.onRead_temperature(data);
-                }, app.onError);
-        } else{
-            console.log('Unregistering Notification for xgatt_temperature');
-            ble.stopNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
-                function() {
-                    retainer.xgatt_temperature.notifying = false;
-                    notifyTemperatureButton.innerHTML = 'Start Notifications';
-                    console.log('Stopped Temperature Notifications');
-                }, app.onError);
-        };
-    },
-    onRead_temperature: function(data) {
-        var rawTemperature, numTemperature, celsius;
-        rawTemperature = new Uint16Array(data);
-        numTemperature = parseInt(rawTemperature[0],10);
-        celsius = ((numTemperature / 16) - 1335) * (1150 / 4096);
-        console.log('Raw Temperature: ' + rawTemperature[0].toString());
-        console.log('Num Temperature: ' + numTemperature);
-        console.log('Celsius: ' + celsius);
-        temperatureValue.innerHTML = celsius.toString().substring(0,7) + '&ordm;C';
-        temperatures.push(celsius);
-        temperatureList.innerHTML = temperatures.join('<br/>');
-        return celsius;
-    },
-    read_writeIndex: function() {
-        return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_writeidx.uuid,
-                resolve, reject);
-        })
-        .then(app.onRead_writeIndex)
-        .catch(app.onError);
-    },
-    onRead_writeIndex: function(data) {
-        return new Promise(function(resolve, reject) {
-            var rawBytes = new Uint8Array(data);
-            var writeIndex = rawBytes[0];
-            console.log('Read xgatt_writeidx: ' + writeIndex.toString());
-            resolve(writeIndex);
-        });
-    },
-    write_readIndex: function(number) {
-        return new Promise(function(resolve, reject) {
-            //Only takes integers 0-125 to index into the cyclical flash data structure on device
-            if (!(Number.isInteger(number) && number >= 0 && number <= 125)) {
-                this.reject(new Error('The "Read Index" must be an integer and must be between 0-125'));
-            }
-            var data = new Uint8Array([number, 0x80]);
-            ble.write(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid, data.buffer,
-                resolve(number), reject);
-        })
-        .then(function(index) {
-            return app.onWrite_readIndex(index);
-        })
-        .catch(app.onError);
-    },
-    onWrite_readIndex: function(index) {
-        return new Promise(function(resolve, reject) {
-            console.log('Wrote xgatt_readidx: ' + index);
-            resolve(index);
-        });
-    },
-    read_readIndex: function() {
-        return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid,
-                resolve, reject);
-        })
-        .then(app.onRead_readIndex)
-        .catch(app.onError);
-    },
-    onRead_readIndex: function(data) {
-        return new Promise(function(resolve, reject) {
-            var rawBytes = new Uint8Array(data);
-            var readIndex = rawBytes[0];
-            console.log('Read xgatt_readidx: ' + readIndex.toString());
-            resolve(readIndex);
-        });
-    },
-    read_overwriteFlag: function() {
-        return new Promise(function(resolve, reject) {
-            console.log('Called read_overwriteFlag');
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_overwrite.uuid, 
-                resolve, reject);
-        })
-        .then(app.onRead_overwriteFlag)
-        .catch(app.onError);
-    },
-    onRead_overwriteFlag: function(data) {
-        return new Promise(function(resolve, reject) {
-            var rawBytes = new Uint8Array(data);
-            var overwriteFlag = Boolean(rawBytes[0]);
-            console.log('Read xgatt_overwrite: ' + overwriteFlag);
-            resolve(overwriteFlag);
-        });
-    },
-    read_dataout1: function() {
-        return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout1.uuid,
-                resolve, reject);
-        })
-        .then(app.onRead_dataout1)
-        .catch(app.onError);
-    },
-    onRead_dataout1: function(data) {    // Data Passed Back as ArrayBuffer Type
-        return new Promise(function(resolve, reject) {
-            var rawTemperature, rawTime, rawCRC, celsius;
-            // data_packet(11): [2 bytes Temp][4 bytes Pressure][4 bytes Time][1 byte CRC]
-            rawTemperature = new DataView(data).getUint16(0, true);
-            rawTime = new DataView(data).getUint16(6, true);
-            rawCRC = new DataView(data).getUint8(10, true)
-
-            console.log('rawTemperature: ' + rawTemperature);
-            console.log('rawTime: ' + rawTime);
-            console.log('rawCRC: ' + rawCRC);
-
-            celsius = ((rawTemperature / 16) - 1335) * (1150 / 4096);
-            console.log(celsius + ' celsius');
-
-            resolve({"celsius":celsius, "rawTemperature":rawTemperature, "rawTime":rawTime, "rawCRC":rawCRC});
-        });
-    },
-    bytesToString: function(buffer) {
-        return String.fromCharCode.apply(null, new Uint8Array(buffer));
-    },
-    stringToBytes: function(string) {
-        var array = new Uint8Array(string.length);
-        for (var i = 0, l = string.length; i < l; i++) {
-            array[i] = string.charCodeAt(i);
-        }
-        return array.buffer;
     },
     showMainPage: function() {
         console.log('Showing Main Page');
@@ -520,6 +359,265 @@ var app = {
         console.log(reason);
     }
 };
+
+// "able" = Asynchronous BLE
+var able = {
+    connect: function(device_uuid) {
+        var onConnect = function(info) {
+            return new Promise(function(resolve, reject) {
+                console.log('Connected: ' + device_uuid);
+                resolve(info);
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            ble.connect(device_uuid, resolve, reject);
+        })
+        .then(onConnect)
+        .catch(app.onError);
+    },
+    disconnect: function(device_uuid) {
+        var onDisconnect = function() {
+            return new Promise(function(resolve, reject) {
+                console.log('Disconnected: ' + device_uuid);
+                resolve(device_uuid);
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            ble.disconnect(device_uuid, resolve, reject);
+        })
+        .then(onDisconnect)
+        .catch(app.onError);
+        
+        // TODO: Extend error handling on disconnect to handle cases in which spontaneous d/c occurs
+        // TODO: Detect spontaneous d/c & then remove detailPage, show mainPage
+    },
+    read_time: function() {
+        var onRead_time = function(data) {
+            return new Promise(function(resolve, reject) {
+                var unixTime = new DataView(data).getUint32(0, true);
+                var date = new Date(unixTime * 1000);
+                console.log('Read xgatt_time. Unix Time: ' + unixTime + ',  Date: ' + date.toJSON());
+                resolve(date);
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_time.uuid,
+                resolve, reject);
+        })
+        .then(onRead_time)
+        .catch(app.onError);
+    },
+    write_time: function(date) {    // date is Javascript Date Object
+        var onWrite_time = function(date) { // date is Javascript Date Object
+            return new Promise(function(resolve, reject) {
+                var unixTime = Math.floor(date.getTime() / 1000); // Unix Time is specified in seconds since Jan 1, 1970d
+                var writtenDate = new Date(unixTime * 1000); // writtenDate truncates millisecond precision from date
+                console.log('Wrote xgatt_time. Unix Time: ' + unixTime + ',  Date: ' + writtenDate.toJSON());
+                resolve(writtenDate);
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            var unixTime = Math.floor(date.getTime()/1000); // Unix Time is specified in seconds since Jan 1, 1970
+            var data = new Uint32Array([unixTime]);
+            ble.write(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_time.uuid, data.buffer,
+                resolve(date), reject);
+        })
+        .then(function(date) {
+            return onWrite_time(date);
+        })
+        .catch(app.onError);
+    },
+    read_temperature: function(event) {
+        var onRead_temperature = function(data) {
+            return new Promise(function(resolve, reject) {
+                var rawTemperature, numTemperature, celsius;
+                rawTemperature = new Uint16Array(data);
+                numTemperature = parseInt(rawTemperature[0], 10);
+                celsius = ((numTemperature / 16) - 1335) * (1150 / 4096);
+                console.log('Raw Temperature: ' + rawTemperature[0].toString());
+                console.log('Num Temperature: ' + numTemperature);
+                console.log('Celsius: ' + celsius);
+                resolve({
+                    "celsius": celsius,
+                    "raw": numTemperature
+                });
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
+                 resolve, reject);
+        })
+        .then(onRead_temperature)
+        .catch(app.onError);
+    },
+    startNotify_temperature: function(onNotifyCallbackFn) { // JS Object with Celsius & Raw temperature passed as arg into user-defined onNotifyCallbackFn
+        var onRead_temperature = function(data) {
+            return new Promise(function(resolve, reject) {
+                console.log('F');
+                var rawTemperature, numTemperature, celsius;
+                rawTemperature = new Uint16Array(data);
+                numTemperature = parseInt(rawTemperature[0], 10);
+                celsius = ((numTemperature / 16) - 1335) * (1150 / 4096);
+                console.log('Raw Temperature: ' + rawTemperature[0].toString());
+                console.log('Num Temperature: ' + numTemperature);
+                console.log('Celsius: ' + celsius);
+                resolve({
+                    "celsius": celsius,
+                    "raw": numTemperature
+                });
+            });
+        },
+        onStartNotification = function(data) {
+            return new Promise(function(resolve, reject) {
+                console.log('E');
+                if (!retainer.xgatt_temperature.notifying) {
+                    retainer.xgatt_temperature.notifying = true;
+                    console.log('Started Temperature Notifications');
+                }
+                resolve(data)
+            });
+        };
+        return new Promise(function(resolve, reject) {
+                console.log('Registering Notification for xgatt_temperature');
+                ble.startNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
+                    function(data) {
+                        return onRead_temperature(data) // interpret temperature result
+                            .then(onNotifyCallbackFn)   // pass values into user-defined callback (for UI interaction)
+                            .then(function(data) {
+                                resolve(data);  // Note: Resolves root Promise, not Promise chain from onRead_temperature()
+                            })
+                            .catch(app.onError);
+                    }, reject);
+            })
+            .then(onStartNotification)  // xgatt_temperature.notifying set only on first notification sent from device
+            .catch(app.onError);
+    },
+    stopNotify_temperature: function() {
+        var onStopNotification = function() {
+            return new Promise(function(resolve, reject) {
+                retainer.xgatt_temperature.notifying = false;
+                //notifyTemperatureButton.innerHTML = 'Start Notifications';
+                console.log('Stopped Temperature Notifications');
+                resolve(retainer.xgatt_temperature.notifying);
+            });
+        };
+        return new Promise(function(resolve, reject) {
+                console.log('Unregistering Notification for xgatt_temperature');
+                ble.stopNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
+                    resolve, reject);
+            })
+            .then(onStopNotification)
+            .catch(app.onError);
+    },
+    read_writeIndex: function() {
+        var onRead_writeIndex = function(data) {
+            return new Promise(function(resolve, reject) {
+                var rawBytes = new Uint8Array(data);
+                var writeIndex = rawBytes[0];
+                console.log('Read xgatt_writeidx: ' + writeIndex.toString());
+                resolve(writeIndex);
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_writeidx.uuid,
+                resolve, reject);
+        })
+        .then(onRead_writeIndex)
+        .catch(app.onError);
+    },
+    write_readIndex: function(number) {
+        var onWrite_readIndex = function(index) {
+            return new Promise(function(resolve, reject) {
+                console.log('Wrote xgatt_readidx: ' + index);
+                resolve(index);
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            //Only takes integers 0-125 to index into the cyclical flash data structure on device
+            if (!(Number.isInteger(number) && number >= 0 && number <= 125)) {
+                this.reject(new Error('The "Read Index" must be an integer and must be between 0-125'));
+            }
+            var data = new Uint8Array([number, 0x80]);
+            ble.write(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid, data.buffer,
+                resolve(number), reject);
+        })
+        .then(function(index) {
+            return onWrite_readIndex(index);
+        })
+        .catch(app.onError);
+    },
+    read_readIndex: function() {
+        var onRead_readIndex = function(data) {
+            return new Promise(function(resolve, reject) {
+                var rawBytes = new Uint8Array(data);
+                var readIndex = rawBytes[0];
+                console.log('Read xgatt_readidx: ' + readIndex.toString());
+                resolve(readIndex);
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid,
+                resolve, reject);
+        })
+        .then(onRead_readIndex)
+        .catch(app.onError);
+    },
+    read_overwriteFlag: function() {
+        var onRead_overwriteFlag = function(data) {
+            return new Promise(function(resolve, reject) {
+                var rawBytes = new Uint8Array(data);
+                var overwriteFlag = Boolean(rawBytes[0]);
+                console.log('Read xgatt_overwrite: ' + overwriteFlag);
+                resolve(overwriteFlag);
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            console.log('Called read_overwriteFlag');
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_overwrite.uuid, 
+                resolve, reject);
+        })
+        .then(onRead_overwriteFlag)
+        .catch(app.onError);
+    },
+    read_dataout1: function() {
+        var onRead_dataout1 = function(data) { // Data Passed Back as ArrayBuffer Type
+            return new Promise(function(resolve, reject) {
+                var rawTemperature, rawTime, rawCRC, celsius;
+                // data_packet(11): [2 bytes Temp][4 bytes Pressure][4 bytes Time][1 byte CRC]
+                rawTemperature = new DataView(data).getUint16(0, true);
+                rawTime = new DataView(data).getUint16(6, true);
+                rawCRC = new DataView(data).getUint8(10, true)
+                console.log('rawTemperature: ' + rawTemperature);
+                console.log('rawTime: ' + rawTime);
+                console.log('rawCRC: ' + rawCRC);
+                celsius = ((rawTemperature / 16) - 1335) * (1150 / 4096);
+                console.log(celsius + ' celsius');
+                resolve({
+                    "celsius": celsius,
+                    "rawTemperature": rawTemperature,
+                    "rawTime": rawTime,
+                    "rawCRC": rawCRC
+                });
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout1.uuid,
+                resolve, reject);
+        })
+        .then(onRead_dataout1)
+        .catch(app.onError);
+    },
+    bytesToString: function(buffer) {
+        return String.fromCharCode.apply(null, new Uint8Array(buffer));
+    },
+    stringToBytes: function(string) {
+        var array = new Uint8Array(string.length);
+        for (var i = 0, l = string.length; i < l; i++) {
+            array[i] = string.charCodeAt(i);
+        }
+        return array.buffer;
+    },
+}
 
 // Polyfill Functions in ES6 that are not available in ES5/Cordova
 Number.isInteger = Number.isInteger || function(value) {
