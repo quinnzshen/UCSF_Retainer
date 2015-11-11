@@ -149,44 +149,26 @@ var app = {
     touchTemperatureNotifyButton: function() {
         console.log('touchTemperatureNotifyButton');
         var updateUIOnNotification = function(value) {
-            console.log('C');
-            console.log(value);
-            temperatureValue.innerHTML = value.celsius.toString().substring(0, 7) + '&ordm;C';
-            temperatures.push(value.celsius);
+            var celsius = value.celsius;
+            temperatureValue.innerHTML = celsius.toString().substring(0, 7) + '&ordm;C';
+            temperatures.push(celsius);
             temperatureList.innerHTML = temperatures.join('<br/>');
         }
-
         if (!retainer.xgatt_temperature.notifying) {
-            console.log('A');
             able.startNotify_temperature(updateUIOnNotification)
             .then(function(value) {
-                console.log('B');
                 if(retainer.xgatt_temperature.notifying) {
                     notifyTemperatureButton.innerHTML = 'Stop Notifications';
                 }
             })
             .catch(app.onError);
         } else {
-            console.log('D');
             able.stopNotify_temperature()
             .then(function(value) {
                 notifyTemperatureButton.innerHTML = 'Start Notifications';
             })
             .catch(app.onError);
         };
-
-        // able.toggleNotify_temperature()
-        // .then(function(value) {
-        //     if (!value) {   // false value means stopped notifying
-        //         notifyTemperatureButton.innerHTML = 'Start Notifications';
-        //     } else {        // otherwise, value contains temperature data
-        //         console.log(result);
-        //         temperatureValue.innerHTML = result.celsius.toString().substring(0, 7) + '&ordm;C';
-        //         temperatures.push(result.celsius);
-        //         temperatureList.innerHTML = temperatures.join('<br/>');
-        //         notifyTemperatureButton.innerHTML = 'Stop Notifications';
-        //     }
-        // });
     },
     pullDeviceData: function() {
         console.log('Starting Pull Device Data Sequence');
@@ -356,7 +338,7 @@ var app = {
     },
     onError: function(reason) {
         alert(reason); // TODO: Eventually use notification.alert
-        console.log(reason);
+        console.log('Error in "App" Object. ' + reason);
     }
 };
 
@@ -373,7 +355,7 @@ var able = {
             ble.connect(device_uuid, resolve, reject);
         })
         .then(onConnect)
-        .catch(app.onError);
+        .catch(able.onError);
     },
     disconnect: function(device_uuid) {
         var onDisconnect = function() {
@@ -386,8 +368,7 @@ var able = {
             ble.disconnect(device_uuid, resolve, reject);
         })
         .then(onDisconnect)
-        .catch(app.onError);
-        
+        .catch(able.onError);
         // TODO: Extend error handling on disconnect to handle cases in which spontaneous d/c occurs
         // TODO: Detect spontaneous d/c & then remove detailPage, show mainPage
     },
@@ -405,7 +386,7 @@ var able = {
                 resolve, reject);
         })
         .then(onRead_time)
-        .catch(app.onError);
+        .catch(able.onError);
     },
     write_time: function(date) {    // date is Javascript Date Object
         var onWrite_time = function(date) { // date is Javascript Date Object
@@ -425,7 +406,7 @@ var able = {
         .then(function(date) {
             return onWrite_time(date);
         })
-        .catch(app.onError);
+        .catch(able.onError);
     },
     read_temperature: function(event) {
         var onRead_temperature = function(data) {
@@ -434,9 +415,9 @@ var able = {
                 rawTemperature = new Uint16Array(data);
                 numTemperature = parseInt(rawTemperature[0], 10);
                 celsius = ((numTemperature / 16) - 1335) * (1150 / 4096);
-                console.log('Raw Temperature: ' + rawTemperature[0].toString());
-                console.log('Num Temperature: ' + numTemperature);
-                console.log('Celsius: ' + celsius);
+                // console.log('Raw Temperature: ' + rawTemperature[0].toString());
+                // console.log('Num Temperature: ' + numTemperature);
+                // console.log('Celsius: ' + celsius);
                 resolve({
                     "celsius": celsius,
                     "raw": numTemperature
@@ -448,26 +429,25 @@ var able = {
                  resolve, reject);
         })
         .then(onRead_temperature)
-        .catch(app.onError);
+        .catch(able.onError);
     },
     startNotify_temperature: function(onNotifyCallbackFn) { // JS Object with Celsius & Raw temperature passed as arg into user-defined onNotifyCallbackFn
         var onRead_temperature = function(data) {
             return new Promise(function(resolve, reject) {
-                console.log('F');
                 var rawTemperature, numTemperature, celsius;
                 rawTemperature = new Uint16Array(data);
                 numTemperature = parseInt(rawTemperature[0], 10);
                 celsius = ((numTemperature / 16) - 1335) * (1150 / 4096);
-                console.log('Raw Temperature: ' + rawTemperature[0].toString());
-                console.log('Num Temperature: ' + numTemperature);
-                console.log('Celsius: ' + celsius);
+                // console.log('Raw Temperature: ' + rawTemperature[0].toString());
+                // console.log('Num Temperature: ' + numTemperature);
+                // console.log('Celsius: ' + celsius);
                 resolve({
                     "celsius": celsius,
                     "raw": numTemperature
                 });
             });
-        },
-        onStartNotification = function(data) {
+        };
+        var onStartNotification = function(data) {
             return new Promise(function(resolve, reject) {
                 console.log('E');
                 if (!retainer.xgatt_temperature.notifying) {
@@ -478,19 +458,19 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-                console.log('Registering Notification for xgatt_temperature');
-                ble.startNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
-                    function(data) {
-                        return onRead_temperature(data) // interpret temperature result
-                            .then(onNotifyCallbackFn)   // pass values into user-defined callback (for UI interaction)
-                            .then(function(data) {
-                                resolve(data);  // Note: Resolves root Promise, not Promise chain from onRead_temperature()
-                            })
-                            .catch(app.onError);
-                    }, reject);
-            })
-            .then(onStartNotification)  // xgatt_temperature.notifying set only on first notification sent from device
-            .catch(app.onError);
+            console.log('Registering Notification for xgatt_temperature');
+            ble.startNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
+                function(data) {
+                    return onRead_temperature(data) // interpret temperature result
+                        .then(onNotifyCallbackFn) // pass values into user-defined callback (for UI interaction)
+                        .then(function(data) {
+                            resolve(data); // Note: Resolves root Promise, not Promise chain from onRead_temperature()
+                        })
+                        .catch(able.onError);
+                }, reject);
+        })
+        .then(onStartNotification) // xgatt_temperature.notifying set only on first notification sent from device
+        .catch(able.onError);
     },
     stopNotify_temperature: function() {
         var onStopNotification = function() {
@@ -502,12 +482,12 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-                console.log('Unregistering Notification for xgatt_temperature');
-                ble.stopNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
-                    resolve, reject);
-            })
-            .then(onStopNotification)
-            .catch(app.onError);
+            console.log('Unregistering Notification for xgatt_temperature');
+            ble.stopNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
+                resolve, reject);
+        })
+        .then(onStopNotification)
+        .catch(able.onError);
     },
     read_writeIndex: function() {
         var onRead_writeIndex = function(data) {
@@ -523,7 +503,7 @@ var able = {
                 resolve, reject);
         })
         .then(onRead_writeIndex)
-        .catch(app.onError);
+        .catch(able.onError);
     },
     write_readIndex: function(number) {
         var onWrite_readIndex = function(index) {
@@ -544,7 +524,7 @@ var able = {
         .then(function(index) {
             return onWrite_readIndex(index);
         })
-        .catch(app.onError);
+        .catch(able.onError);
     },
     read_readIndex: function() {
         var onRead_readIndex = function(data) {
@@ -560,7 +540,7 @@ var able = {
                 resolve, reject);
         })
         .then(onRead_readIndex)
-        .catch(app.onError);
+        .catch(able.onError);
     },
     read_overwriteFlag: function() {
         var onRead_overwriteFlag = function(data) {
@@ -577,7 +557,7 @@ var able = {
                 resolve, reject);
         })
         .then(onRead_overwriteFlag)
-        .catch(app.onError);
+        .catch(able.onError);
     },
     read_dataout1: function() {
         var onRead_dataout1 = function(data) { // Data Passed Back as ArrayBuffer Type
@@ -605,18 +585,12 @@ var able = {
                 resolve, reject);
         })
         .then(onRead_dataout1)
-        .catch(app.onError);
+        .catch(able.onError);
     },
-    bytesToString: function(buffer) {
-        return String.fromCharCode.apply(null, new Uint8Array(buffer));
-    },
-    stringToBytes: function(string) {
-        var array = new Uint8Array(string.length);
-        for (var i = 0, l = string.length; i < l; i++) {
-            array[i] = string.charCodeAt(i);
-        }
-        return array.buffer;
-    },
+    onError: function(reason) {
+        alert(reason); // TODO: Eventually use notification.alert
+        console.log('Error in "ABLE" Object. ' + reason);
+    }
 }
 
 // Polyfill Functions in ES6 that are not available in ES5/Cordova
