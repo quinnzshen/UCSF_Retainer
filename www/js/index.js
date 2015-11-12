@@ -587,6 +587,62 @@ var able = {
         .then(onRead_dataout1)
         .catch(able.onError);
     },
+    read_dataout2: function() {
+        var onRead_dataout2 = function(data) { // Data Passed Back as ArrayBuffer Type
+            return new Promise(function(resolve, reject) {
+                var rawTemperature, rawTime, rawCRC, celsius;
+                // data_packet(11): [2 bytes Temp][4 bytes Pressure][4 bytes Time][1 byte CRC]
+                rawTemperature = new DataView(data).getUint16(0, true);
+                rawTime = new DataView(data).getUint16(6, true);
+                rawCRC = new DataView(data).getUint8(10, true)
+                console.log('rawTemperature: ' + rawTemperature);
+                console.log('rawTime: ' + rawTime);
+                console.log('rawCRC: ' + rawCRC);
+                celsius = ((rawTemperature / 16) - 1335) * (1150 / 4096);
+                console.log(celsius + ' celsius');
+                resolve({
+                    "celsius": celsius,
+                    "rawTemperature": rawTemperature,
+                    "rawTime": rawTime,
+                    "rawCRC": rawCRC
+                });
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout2.uuid,
+                resolve, reject);
+        })
+        .then(onRead_dataout2)
+        .catch(able.onError);
+    },
+    read_dataout3: function() {
+        var onRead_dataout3 = function(data) { // Data Passed Back as ArrayBuffer Type
+            return new Promise(function(resolve, reject) {
+                var rawTemperature, rawTime, rawCRC, celsius;
+                // data_packet(11): [2 bytes Temp][4 bytes Pressure][4 bytes Time][1 byte CRC]
+                rawTemperature = new DataView(data).getUint16(0, true);
+                rawTime = new DataView(data).getUint16(6, true);
+                rawCRC = new DataView(data).getUint8(10, true)
+                console.log('rawTemperature: ' + rawTemperature);
+                console.log('rawTime: ' + rawTime);
+                console.log('rawCRC: ' + rawCRC);
+                celsius = ((rawTemperature / 16) - 1335) * (1150 / 4096);
+                console.log(celsius + ' celsius');
+                resolve({
+                    "celsius": celsius,
+                    "rawTemperature": rawTemperature,
+                    "rawTime": rawTime,
+                    "rawCRC": rawCRC
+                });
+            });
+        };
+        return new Promise(function(resolve, reject) {
+            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout3.uuid,
+                resolve, reject);
+        })
+        .then(onRead_dataout3)
+        .catch(able.onError);
+    },
     onError: function(reason) {
         alert(reason); // TODO: Eventually use notification.alert
         console.log('Error in "ABLE" Object. ' + reason);
