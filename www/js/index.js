@@ -17,8 +17,8 @@
  * under the License.
  */
 
- /* globals console, document, refreshButton, deviceList, readTemperatureButton, disconnectButton, notifyTemperatureButton,
-    pullDeviceDataButton, testButton, ble, temperatureValue, temperatureList, detailPage, mainPage, alert */
+/* globals console, document, refreshButton, deviceList, readTemperatureButton, disconnectButton, notifyTemperatureButton,
+   pullDeviceDataButton, testButton, ble, temperatureValue, temperatureList, detailPage, mainPage, alert */
 'use strict';
 
 var retainer = {
@@ -139,12 +139,12 @@ var app = {
     },
     touchTemperatureButton: function() {
         able.read_temperature()
-        .then(function(result) {
-            console.log(result);
-            temperatureValue.innerHTML = result.celsius.toString().substring(0, 7) + '&ordm;C';
-            temperatures.push(result.celsius);
-            temperatureList.innerHTML = temperatures.join('<br/>');
-        });
+            .then(function(result) {
+                console.log(result);
+                temperatureValue.innerHTML = result.celsius.toString().substring(0, 7) + '&ordm;C';
+                temperatures.push(result.celsius);
+                temperatureList.innerHTML = temperatures.join('<br/>');
+            });
     },
     touchTemperatureNotifyButton: function() {
         console.log('touchTemperatureNotifyButton');
@@ -156,137 +156,158 @@ var app = {
         }
         if (!retainer.xgatt_temperature.notifying) {
             able.startNotify_temperature(updateUIOnNotification)
-            .then(function(value) {
-                if(retainer.xgatt_temperature.notifying) {
-                    notifyTemperatureButton.innerHTML = 'Stop Notifications';
-                }
-            })
-            .catch(app.onError);
+                .then(function(value) {
+                    if (retainer.xgatt_temperature.notifying) {
+                        notifyTemperatureButton.innerHTML = 'Stop Notifications';
+                    }
+                })
+                .catch(app.onError);
         } else {
             able.stopNotify_temperature()
-            .then(function(value) {
-                notifyTemperatureButton.innerHTML = 'Start Notifications';
-            })
-            .catch(app.onError);
+                .then(function(value) {
+                    notifyTemperatureButton.innerHTML = 'Start Notifications';
+                })
+                .catch(app.onError);
         };
     },
     pullDeviceData: function() {
         console.log('Starting Pull Device Data Sequence');
         Promise.all([
-            able.read_readIndex(),
-            able.read_writeIndex(),
-            able.read_overwriteFlag()
-        ])
-        .then(function(values) {
-            var readIdx = values[0],
-                writeIdx = values[1],
-                overwriteFlag = values[2],
-                currentIdx,
-                endIdx,
-                retrievedData = [],
-                asyncGetDataFromFlashRange = function(currentIdx, endIdx) {
-                    var p = Promise.resolve();
-                    var results = [];
-                    while (currentIdx <= endIdx) {
-                        var wrappedFn = function(idx) { // Capture currentIdx in scope of wrappedFn for Async Execution
-                            return function() { // Function Curry to make Promise Then-able
-                                return app.getDataFromFlash(idx); // Returns a Promise Object
-                            };
+                able.read_readIndex(),
+                able.read_writeIndex(),
+                able.read_overwriteFlag()
+            ])
+            .then(function(values) {
+                var readIdx = values[0],
+                    writeIdx = values[1],
+                    overwriteFlag = values[2],
+                    currentIdx,
+                    endIdx,
+                    retrievedData = [],
+                    asyncGetDataFromFlashRange = function(currentIdx, endIdx) {
+                        var p = Promise.resolve();
+                        var results = [];
+                        while (currentIdx <= endIdx) {
+                            var wrappedFn = function(idx) { // Capture currentIdx in scope of wrappedFn for Async Execution
+                                return function() { // Function Curry to make Promise Then-able
+                                    return app.getDataFromFlash(idx); // Returns a Promise Object
+                                };
+                            }
+                            p = p.then(wrappedFn(currentIdx)) // While loop iterations builds Promise Chain
+                                .then(function(values) {
+                                    var dataout1 = values[0],
+                                        dataout2 = values[1],
+                                        dataout3 = values[2];
+                                    console.log('Dataout1: ' + JSON.stringify(dataout1));
+                                    console.log('Dataout2: ' + JSON.stringify(dataout2));
+                                    console.log('Dataout3: ' + JSON.stringify(dataout3));
+                                    console.log('- - - - - - - - - -');
+                                    results.push(dataout1, dataout2, dataout3); // Store result for each invocation of app.getDataFromflash(idx)
+                                })
+                                .catch(app.onError);
+                            currentIdx += 1;
                         }
-                        p = p.then(wrappedFn(currentIdx))   // While loop iterations builds Promise Chain
-                            .then(function(value) {
-                                results.push(value);    // Store result for each invocation of app.getDataFromflash(idx)
+                        p = p.then(function() {
+                                return results; // Final element of Promise Chain returns results
                             })
                             .catch(app.onError);
-                        currentIdx += 1;
-                    }
-                    p = p.then(function() {
-                        return results; // Final element of Promise Chain returns results
-                    })
-                    .catch(app.onError);
-                    return p;
-                };
-            // Handle Various Cases of Cyclical Data Structure
-            // If data not overwritten, pull data from readIdx-->writeIdx-1 (wrapping around cyclical boundary)
-            // If data is overwritten, pull data from writeIdx+1-->writeIdx-1 (wrapping around cyclical boundary)
-            if (readIdx === writeIdx && overwriteFlag === 0) {
-                console.log('Case A: No new data.  Do nothing.');
-                return null; // No new data. Do nothing
-            } else if (readIdx < writeIdx && overwriteFlag === 0) {
-                console.log('Case B: New data.  Read: readIdx-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
-                currentIdx = readIdx;
-                endIdx = writeIdx - 1;
-                retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
-                return retrievedData;
-            } else if (readIdx > writeIdx && overwriteFlag === 0) {
-                console.log('Case C: New data.  Read: readIdx-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
-                return new Promise(function(resolve, reject) {
+                        return p;
+                    };
+                // Handle Various Cases of Cyclical Data Structure
+                // If data not overwritten, pull data from readIdx-->writeIdx-1 (wrapping around cyclical boundary)
+                // If data is overwritten, pull data from writeIdx+1-->writeIdx-1 (wrapping around cyclical boundary)
+                if (readIdx === writeIdx && overwriteFlag === 0) {
+                    console.log('Case A: No new data.  Do nothing.');
+                    return null; // No new data. Do nothing
+                } else if (readIdx < writeIdx && overwriteFlag === 0) {
+                    console.log('Case B: New data.  Read: readIdx-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                     currentIdx = readIdx;
-                    endIdx = 125;
-                    retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
-                    resolve(retrievedData);
-                })
-                .then(function(value) {
-                    retrievedData = value;
-                    currentIdx = 0;
                     endIdx = writeIdx - 1;
-                    return asyncGetDataFromFlashRange(currentIdx, endIdx)
-                    .then(function(value) {
-                        retrievedData = retrievedData.concat(value);
-                        return retrievedData;
-                    })
-                    .catch(app.onError);
-                })
-                .catch(app.onError);
-            } else {
-                if (writeIdx === 125) {
-                    console.log('Case D.1: New data & overwritten.  Read: 0-->124 b/c writeIdx is 125. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
-                    currentIdx = 0;
-                    endIdx = 124;
                     retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
                     return retrievedData;
-                } else {
-                    console.log('Case D.2: New data & overwritten.  Read: writeIdx+1-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
+                } else if (readIdx > writeIdx && overwriteFlag === 0) {
+                    console.log('Case C: New data.  Read: readIdx-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                     return new Promise(function(resolve, reject) {
-                        currentIdx = writeIdx + 1;
-                        endIdx = 125;
-                        retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
-                        resolve(retrievedData);
-                    })
-                    .then(function(value) {
-                        retrievedData = value;
-                        currentIdx = 0;
-                        endIdx = writeIdx - 1;
-                        return asyncGetDataFromFlashRange(currentIdx, endIdx)
+                            currentIdx = readIdx;
+                            endIdx = 125;
+                            retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
+                            resolve(retrievedData);
+                        })
                         .then(function(value) {
-                            retrievedData = retrievedData.concat(value);
-                            return retrievedData;
+                            retrievedData = value;
+                            currentIdx = 0;
+                            endIdx = writeIdx - 1;
+                            return asyncGetDataFromFlashRange(currentIdx, endIdx)
+                                .then(function(value) {
+                                    retrievedData = retrievedData.concat(value);
+                                    return retrievedData;
+                                })
+                                .catch(app.onError);
                         })
                         .catch(app.onError);
-                    })
-                    .catch(app.onError);
+                } else {
+                    if (writeIdx === 125) {
+                        console.log('Case D.1: New data & overwritten.  Read: 0-->124 b/c writeIdx is 125. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
+                        currentIdx = 0;
+                        endIdx = 124;
+                        retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
+                        return retrievedData;
+                    } else {
+                        console.log('Case D.2: New data & overwritten.  Read: writeIdx+1-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
+                        return new Promise(function(resolve, reject) {
+                                currentIdx = writeIdx + 1;
+                                endIdx = 125;
+                                retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
+                                resolve(retrievedData);
+                            })
+                            .then(function(value) {
+                                retrievedData = value;
+                                currentIdx = 0;
+                                endIdx = writeIdx - 1;
+                                return asyncGetDataFromFlashRange(currentIdx, endIdx)
+                                    .then(function(value) {
+                                        retrievedData = retrievedData.concat(value);
+                                        return retrievedData;
+                                    })
+                                    .catch(app.onError);
+                            })
+                            .catch(app.onError);
+                    };
                 };
-            };
-        })
-        .then(function(array) {
-            console.log('Pulled Data: ' + JSON.stringify(array));
-            console.log('----------------');
-            pulledData = pulledData.concat(array);
-        })
-        .catch(app.onError);
+            })
+            .then(function(array) {
+                console.log('Pulled Data: ' + JSON.stringify(array, null, 2));
+                pulledData = pulledData.concat(array);
+            })
+            .catch(app.onError);
     },
     getDataFromFlash: function(index) {
         return new Promise(function(resolve, reject) {
             console.log('app.getDataFromFlash(' + index + ')');
             able.write_readIndex(index)
-            .then(able.read_dataout1)
-            .then(function(value) {
-                console.log('onRead_dataout1 for index: ' + index + ' resolve value: ' + value.rawTemperature + ' ' + value.rawTime + ' ' + value.rawCRC);
-                console.log('-----');
-                value['index'] = index;
-                resolve(value);
-            })
-            .catch(app.onError);
+                .then(function(index) {
+                    return Promise.all([
+                            able.read_dataout1(),
+                            able.read_dataout2(),
+                            able.read_dataout3()
+                        ])
+                        .then(function(values) {
+                            return new Promise(function(resolve, reject) {
+                                for (var i = 0; i < values.length; i++) {
+                                    values[i].flashIndex = index;
+                                    values[i].flashSubindex = i;
+                                };
+                                resolve(values);
+                            })
+                            .then(function(values) {
+                                return resolve(values);
+                            })
+                            .catch(app.onError);
+                        })
+                        .catch(app.onError);
+                        // TODO: not returning index; need to store values into new results variable & return that w/ index added on
+                })
+                .catch(app.onError);
         });
     },
     testButton: function() {
@@ -294,27 +315,27 @@ var app = {
         console.log(date);
 
         var deviceTime = able.read_time()
-        .then(function(value) {
-            console.log('1) completed app.read_time: ' + value);
-            return value;
-        })
-        .then(function() {
-            console.log('Before 2: Calling app.write_time(seconds)');
-            return able.write_time(date);
-        })
-        .then(function(value) {
-            console.log('2) completed app.write_time: ' + value);
-            return value;
-        })
-        .then(function() {
-            console.log('Before 3: Calling app.read_time()');
-            return able.read_time();
-        })
-        .then(function(value) {
-            console.log('3) completed app.read_time: ' + value);
-            return value;
-        })
-        .catch(app.onError);
+            .then(function(value) {
+                console.log('1) completed app.read_time: ' + value);
+                return value;
+            })
+            .then(function() {
+                console.log('Before 2: Calling app.write_time(seconds)');
+                return able.write_time(date);
+            })
+            .then(function(value) {
+                console.log('2) completed app.write_time: ' + value);
+                return value;
+            })
+            .then(function() {
+                console.log('Before 3: Calling app.read_time()');
+                return able.read_time();
+            })
+            .then(function(value) {
+                console.log('3) completed app.read_time: ' + value);
+                return value;
+            })
+            .catch(app.onError);
 
         return deviceTime;
     },
@@ -352,10 +373,10 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            ble.connect(device_uuid, resolve, reject);
-        })
-        .then(onConnect)
-        .catch(able.onError);
+                ble.connect(device_uuid, resolve, reject);
+            })
+            .then(onConnect)
+            .catch(able.onError);
     },
     disconnect: function(device_uuid) {
         var onDisconnect = function() {
@@ -365,10 +386,10 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            ble.disconnect(device_uuid, resolve, reject);
-        })
-        .then(onDisconnect)
-        .catch(able.onError);
+                ble.disconnect(device_uuid, resolve, reject);
+            })
+            .then(onDisconnect)
+            .catch(able.onError);
         // TODO: Extend error handling on disconnect to handle cases in which spontaneous d/c occurs
         // TODO: Detect spontaneous d/c & then remove detailPage, show mainPage
     },
@@ -382,13 +403,13 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_time.uuid,
-                resolve, reject);
-        })
-        .then(onRead_time)
-        .catch(able.onError);
+                ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_time.uuid,
+                    resolve, reject);
+            })
+            .then(onRead_time)
+            .catch(able.onError);
     },
-    write_time: function(date) {    // date is Javascript Date Object
+    write_time: function(date) { // date is Javascript Date Object
         var onWrite_time = function(date) { // date is Javascript Date Object
             return new Promise(function(resolve, reject) {
                 var unixTime = Math.floor(date.getTime() / 1000); // Unix Time is specified in seconds since Jan 1, 1970d
@@ -398,15 +419,15 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            var unixTime = Math.floor(date.getTime()/1000); // Unix Time is specified in seconds since Jan 1, 1970
-            var data = new Uint32Array([unixTime]);
-            ble.write(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_time.uuid, data.buffer,
-                resolve(date), reject);
-        })
-        .then(function(date) {
-            return onWrite_time(date);
-        })
-        .catch(able.onError);
+                var unixTime = Math.floor(date.getTime() / 1000); // Unix Time is specified in seconds since Jan 1, 1970
+                var data = new Uint32Array([unixTime]);
+                ble.write(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_time.uuid, data.buffer,
+                    resolve(date), reject);
+            })
+            .then(function(date) {
+                return onWrite_time(date);
+            })
+            .catch(able.onError);
     },
     read_temperature: function(event) {
         var onRead_temperature = function(data) {
@@ -425,11 +446,11 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
-                 resolve, reject);
-        })
-        .then(onRead_temperature)
-        .catch(able.onError);
+                ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
+                    resolve, reject);
+            })
+            .then(onRead_temperature)
+            .catch(able.onError);
     },
     startNotify_temperature: function(onNotifyCallbackFn) { // JS Object with Celsius & Raw temperature passed as arg into user-defined onNotifyCallbackFn
         var onRead_temperature = function(data) {
@@ -458,19 +479,19 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            console.log('Registering Notification for xgatt_temperature');
-            ble.startNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
-                function(data) {
-                    return onRead_temperature(data) // interpret temperature result
-                        .then(onNotifyCallbackFn) // pass values into user-defined callback (for UI interaction)
-                        .then(function(data) {
-                            resolve(data); // Note: Resolves root Promise, not Promise chain from onRead_temperature()
-                        })
-                        .catch(able.onError);
-                }, reject);
-        })
-        .then(onStartNotification) // xgatt_temperature.notifying set only on first notification sent from device
-        .catch(able.onError);
+                console.log('Registering Notification for xgatt_temperature');
+                ble.startNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
+                    function(data) {
+                        return onRead_temperature(data) // interpret temperature result
+                            .then(onNotifyCallbackFn) // pass values into user-defined callback (for UI interaction)
+                            .then(function(data) {
+                                resolve(data); // Note: Resolves root Promise, not Promise chain from onRead_temperature()
+                            })
+                            .catch(able.onError);
+                    }, reject);
+            })
+            .then(onStartNotification) // xgatt_temperature.notifying set only on first notification sent from device
+            .catch(able.onError);
     },
     stopNotify_temperature: function() {
         var onStopNotification = function() {
@@ -482,12 +503,12 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            console.log('Unregistering Notification for xgatt_temperature');
-            ble.stopNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
-                resolve, reject);
-        })
-        .then(onStopNotification)
-        .catch(able.onError);
+                console.log('Unregistering Notification for xgatt_temperature');
+                ble.stopNotification(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_temperature.uuid,
+                    resolve, reject);
+            })
+            .then(onStopNotification)
+            .catch(able.onError);
     },
     read_writeIndex: function() {
         var onRead_writeIndex = function(data) {
@@ -499,11 +520,11 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_writeidx.uuid,
-                resolve, reject);
-        })
-        .then(onRead_writeIndex)
-        .catch(able.onError);
+                ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_writeidx.uuid,
+                    resolve, reject);
+            })
+            .then(onRead_writeIndex)
+            .catch(able.onError);
     },
     write_readIndex: function(number) {
         var onWrite_readIndex = function(index) {
@@ -513,18 +534,18 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            //Only takes integers 0-125 to index into the cyclical flash data structure on device
-            if (!(Number.isInteger(number) && number >= 0 && number <= 125)) {
-                this.reject(new Error('The "Read Index" must be an integer and must be between 0-125'));
-            }
-            var data = new Uint8Array([number, 0x80]);
-            ble.write(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid, data.buffer,
-                resolve(number), reject);
-        })
-        .then(function(index) {
-            return onWrite_readIndex(index);
-        })
-        .catch(able.onError);
+                //Only takes integers 0-125 to index into the cyclical flash data structure on device
+                if (!(Number.isInteger(number) && number >= 0 && number <= 125)) {
+                    this.reject(new Error('The "Read Index" must be an integer and must be between 0-125'));
+                }
+                var data = new Uint8Array([number, 0x80]);
+                ble.write(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid, data.buffer,
+                    resolve(number), reject);
+            })
+            .then(function(index) {
+                return onWrite_readIndex(index);
+            })
+            .catch(able.onError);
     },
     read_readIndex: function() {
         var onRead_readIndex = function(data) {
@@ -536,11 +557,11 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid,
-                resolve, reject);
-        })
-        .then(onRead_readIndex)
-        .catch(able.onError);
+                ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_readidx.uuid,
+                    resolve, reject);
+            })
+            .then(onRead_readIndex)
+            .catch(able.onError);
     },
     read_overwriteFlag: function() {
         var onRead_overwriteFlag = function(data) {
@@ -552,12 +573,12 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            console.log('Called read_overwriteFlag');
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_overwrite.uuid, 
-                resolve, reject);
-        })
-        .then(onRead_overwriteFlag)
-        .catch(able.onError);
+                console.log('Called read_overwriteFlag');
+                ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_overwrite.uuid,
+                    resolve, reject);
+            })
+            .then(onRead_overwriteFlag)
+            .catch(able.onError);
     },
     read_dataout1: function() {
         var onRead_dataout1 = function(data) { // Data Passed Back as ArrayBuffer Type
@@ -567,11 +588,8 @@ var able = {
                 rawTemperature = new DataView(data).getUint16(0, true);
                 rawTime = new DataView(data).getUint16(6, true);
                 rawCRC = new DataView(data).getUint8(10, true)
-                console.log('rawTemperature: ' + rawTemperature);
-                console.log('rawTime: ' + rawTime);
-                console.log('rawCRC: ' + rawCRC);
                 celsius = ((rawTemperature / 16) - 1335) * (1150 / 4096);
-                console.log(celsius + ' celsius');
+                console.log('Read DataOut1. rawTemperature: ' + rawTemperature + ', rawTime: ' + rawTime + ', rawCRC: ' + rawCRC + ', celsius: ' + celsius);
                 resolve({
                     "celsius": celsius,
                     "rawTemperature": rawTemperature,
@@ -581,11 +599,11 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout1.uuid,
-                resolve, reject);
-        })
-        .then(onRead_dataout1)
-        .catch(able.onError);
+                ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout1.uuid,
+                    resolve, reject);
+            })
+            .then(onRead_dataout1)
+            .catch(able.onError);
     },
     read_dataout2: function() {
         var onRead_dataout2 = function(data) { // Data Passed Back as ArrayBuffer Type
@@ -595,11 +613,8 @@ var able = {
                 rawTemperature = new DataView(data).getUint16(0, true);
                 rawTime = new DataView(data).getUint16(6, true);
                 rawCRC = new DataView(data).getUint8(10, true)
-                console.log('rawTemperature: ' + rawTemperature);
-                console.log('rawTime: ' + rawTime);
-                console.log('rawCRC: ' + rawCRC);
                 celsius = ((rawTemperature / 16) - 1335) * (1150 / 4096);
-                console.log(celsius + ' celsius');
+                console.log('Read DataOut2. rawTemperature: ' + rawTemperature + ', rawTime: ' + rawTime + ', rawCRC: ' + rawCRC + ', celsius: ' + celsius);
                 resolve({
                     "celsius": celsius,
                     "rawTemperature": rawTemperature,
@@ -609,11 +624,11 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout2.uuid,
-                resolve, reject);
-        })
-        .then(onRead_dataout2)
-        .catch(able.onError);
+                ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout2.uuid,
+                    resolve, reject);
+            })
+            .then(onRead_dataout2)
+            .catch(able.onError);
     },
     read_dataout3: function() {
         var onRead_dataout3 = function(data) { // Data Passed Back as ArrayBuffer Type
@@ -623,11 +638,8 @@ var able = {
                 rawTemperature = new DataView(data).getUint16(0, true);
                 rawTime = new DataView(data).getUint16(6, true);
                 rawCRC = new DataView(data).getUint8(10, true)
-                console.log('rawTemperature: ' + rawTemperature);
-                console.log('rawTime: ' + rawTime);
-                console.log('rawCRC: ' + rawCRC);
                 celsius = ((rawTemperature / 16) - 1335) * (1150 / 4096);
-                console.log(celsius + ' celsius');
+                console.log('Read DataOut3. rawTemperature: ' + rawTemperature + ', rawTime: ' + rawTime + ', rawCRC: ' + rawCRC + ', celsius: ' + celsius);
                 resolve({
                     "celsius": celsius,
                     "rawTemperature": rawTemperature,
@@ -637,11 +649,11 @@ var able = {
             });
         };
         return new Promise(function(resolve, reject) {
-            ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout3.uuid,
-                resolve, reject);
-        })
-        .then(onRead_dataout3)
-        .catch(able.onError);
+                ble.read(retainer.device_uuid, retainer.xgatt_service.uuid, retainer.xgatt_dataout3.uuid,
+                    resolve, reject);
+            })
+            .then(onRead_dataout3)
+            .catch(able.onError);
     },
     onError: function(reason) {
         alert(reason); // TODO: Eventually use notification.alert
@@ -652,8 +664,8 @@ var able = {
 // Polyfill Functions in ES6 that are not available in ES5/Cordova
 Number.isInteger = Number.isInteger || function(value) {
     return typeof value === "number" &&
-           isFinite(value) &&
-           Math.floor(value) === value;
+        isFinite(value) &&
+        Math.floor(value) === value;
 };
 
 Number.isNumeric = Number.isNumeric || function(n) {
