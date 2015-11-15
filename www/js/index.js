@@ -91,22 +91,33 @@ var app = {
     // Bind any events that are required on startup. Common events are:
     // 'load', 'deviceready', 'offline', and 'online'.
     bindEvents: function() {
+        document.addEventListener('deviceready', function() {
+            if (navigator.notification) { // Override default HTML alert with native dialog
+                window.alert = function(message, alertCallback, title, buttonName) {
+                    navigator.notification.alert(message, alertCallback, title, buttonName);
+                };
+            }
+        }, false);
         document.addEventListener('deviceready', this.onDeviceReady, false);
         refreshButton.addEventListener('touchend', this.refreshDeviceList, false);
         deviceList.addEventListener('touchend', this.touchDeviceListElement, false);
         readTemperatureButton.addEventListener('touchend', this.touchTemperatureButton, false);
         disconnectButton.addEventListener('touchend', this.touchDisconnectButton, false);
         notifyTemperatureButton.addEventListener('touchend', this.touchTemperatureNotifyButton, false);
-        pullDeviceDataButton.addEventListener('touchend', this.pullDeviceData, false);
+        pullDeviceDataButton.addEventListener('touchend', this.touchPullDeviceDataButton, false);
+        pushDataToCloudButton.addEventListener('touchend', this.touchPushDataToCloudButton, false);
         testButton.addEventListener('touchend', this.testButton, false);
     },
     onDeviceReady: function() {
         app.refreshDeviceList();
+        data.initialize();  // Parse initialization must be after deviceready
     },
     refreshDeviceList: function() {
         deviceList.innerHTML = '';
         ble.scan([retainer.xgatt_service.uuid], 5, app.onDiscoverDevice, app.onError);
         // TODO: Change to startScan & stopScan when move away page
+        // Make scan more robust by storing device UUId in array in "onDiscoverDevice" & have UI show the array contents;
+        // dynamically remove devices that move out of range
     },
     onDiscoverDevice: function(device) {
         console.log(JSON.stringify(device));
@@ -119,7 +130,6 @@ var app = {
         deviceList.appendChild(listItem);
     },
     touchDeviceListElement: function(e) {
-        console.log(JSON.stringify(e.target.dataset.deviceId));
         retainer.device_uuid = e.target.dataset.deviceId;
         able.connect(retainer.device_uuid)
             .then(function(info) { // On Each Connection, Update Device Time
@@ -131,8 +141,6 @@ var app = {
             .catch(app.onError);
     },
     touchDisconnectButton: function(e) {
-        console.log(JSON.stringify(e.target.dataset));
-        console.log(JSON.stringify(e));
         able.disconnect(retainer.device_uuid)
             .then(app.showMainPage)
             .catch(app.onError);
@@ -169,6 +177,12 @@ var app = {
                 })
                 .catch(app.onError);
         };
+    },
+    touchPullDeviceDataButton: function() {
+        app.pullDeviceData();
+    },
+    touchPushDataToCloudButton: function() {
+        data.saveDataToCloud(pulledData);
     },
     pullDeviceData: function() {
         console.log('Starting Pull Device Data Sequence');
@@ -293,51 +307,24 @@ var app = {
                         ])
                         .then(function(values) {
                             return new Promise(function(resolve, reject) {
-                                for (var i = 0; i < values.length; i++) {
-                                    values[i].flashIndex = index;
-                                    values[i].flashSubindex = i;
-                                };
-                                resolve(values);
-                            })
-                            .then(function(values) {
-                                return resolve(values);
-                            })
-                            .catch(app.onError);
+                                    for (var i = 0; i < values.length; i++) {
+                                        values[i].flashIndex = index;
+                                        values[i].flashSubindex = i;
+                                    };
+                                    resolve(values);
+                                })
+                                .then(function(values) {
+                                    return resolve(values);
+                                })
+                                .catch(app.onError);
                         })
                         .catch(app.onError);
-                        // TODO: not returning index; need to store values into new results variable & return that w/ index added on
                 })
                 .catch(app.onError);
         });
     },
     testButton: function() {
-        var date = new Date();
-        console.log(date);
-
-        var deviceTime = able.read_time()
-            .then(function(value) {
-                console.log('1) completed app.read_time: ' + value);
-                return value;
-            })
-            .then(function() {
-                console.log('Before 2: Calling app.write_time(seconds)');
-                return able.write_time(date);
-            })
-            .then(function(value) {
-                console.log('2) completed app.write_time: ' + value);
-                return value;
-            })
-            .then(function() {
-                console.log('Before 3: Calling app.read_time()');
-                return able.read_time();
-            })
-            .then(function(value) {
-                console.log('3) completed app.read_time: ' + value);
-                return value;
-            })
-            .catch(app.onError);
-
-        return deviceTime;
+        data.saveTestObject();
     },
     showMainPage: function() {
         console.log('Showing Main Page');
@@ -358,7 +345,7 @@ var app = {
         temperatureList.innerHTML = '';
     },
     onError: function(reason) {
-        alert(reason); // TODO: Eventually use notification.alert
+        alert(reason, null, 'App Error', 'Ok');
         console.log('Error in "App" Object. ' + reason);
     }
 };
@@ -470,7 +457,6 @@ var able = {
         };
         var onStartNotification = function(data) {
             return new Promise(function(resolve, reject) {
-                console.log('E');
                 if (!retainer.xgatt_temperature.notifying) {
                     retainer.xgatt_temperature.notifying = true;
                     console.log('Started Temperature Notifications');
@@ -656,8 +642,66 @@ var able = {
             .catch(able.onError);
     },
     onError: function(reason) {
-        alert(reason); // TODO: Eventually use notification.alert
+        alert(reason, null, 'Bluetooth Error', 'Ok');
         console.log('Error in "ABLE" Object. ' + reason);
+    }
+}
+
+var data = {
+    initialize: function() {
+        Parse.initialize('GhbTTSKlg6pCWzSSGpXzvwyMtiSTYzrwWpiDBbIz',
+            'CtcPrTok6S5PgoW7eWQRQANQgeAgI9e3p6Csjlui');
+    },
+    saveDataToCloud: function(array) {
+        var dataToUpload = array,
+            DeviceData = Parse.Object.extend('deviceData1');
+        if (array.length === 0) {
+            alert('No new data to upload to cloud', null, 'No New Data', 'Ok');
+            console.log('No New Data To Be Pushed to Parse.com');
+            return;
+        }
+
+        // TODO: Use Parse.Promise & Consider using destroy() in Parse API to filter array & prevent duplicate entries of data
+        console.log('Uploading data to Parse.com');
+        var dataPoints = [];
+        $.each(dataToUpload, function(index, value) {
+            var obj = value,
+                dataPoint = new DeviceData();
+            dataPoint.set(obj);
+            dataPoints.push(dataPoint);
+
+        });
+
+        Parse.Object.saveAll(dataPoints, {
+            success: function(list) {
+                console.log('All Data Pushed to Parse.com');
+                array.length = 0; // Clear orig. source array passed in as argument
+            },
+            error: function(error) {
+                data.onError(error);
+            }
+        });
+
+        return dataPoints;
+    },
+    saveTestObject: function() {
+        console.log('Saving TestObject to Parse.com');
+        var TestObject = Parse.Object.extend('TestObject');
+        var testObject = new TestObject();
+        testObject.save({
+            foo: "bar"
+        }, {
+            success: function(object) {
+                console.log('Successfully created TestObject');
+            },
+            error: function(model, error) {
+                console.log('Failed to create TestObject');
+            }
+        });
+    },
+    onError: function(reason) {
+        alert(reason, null, 'Data Error', 'Ok');
+        console.log('Error in "Data" Object. ' + reason);
     }
 }
 
