@@ -212,9 +212,6 @@ var app = {
                                     var dataout1 = values[0],
                                         dataout2 = values[1],
                                         dataout3 = values[2];
-                                    console.log('Dataout1: ' + JSON.stringify(dataout1));
-                                    console.log('Dataout2: ' + JSON.stringify(dataout2));
-                                    console.log('Dataout3: ' + JSON.stringify(dataout3));
                                     console.log('- - - - - - - - - -');
                                     results.push(dataout1, dataout2, dataout3); // Store result for each invocation of app.getDataFromflash(idx)
                                 })
@@ -230,16 +227,16 @@ var app = {
                 // Handle Various Cases of Cyclical Data Structure
                 // If data not overwritten, pull data from readIdx-->writeIdx-1 (wrapping around cyclical boundary)
                 // If data is overwritten, pull data from writeIdx+1-->writeIdx-1 (wrapping around cyclical boundary)
-                if (readIdx === writeIdx && overwriteFlag === 0) {
+                if (readIdx === writeIdx && overwriteFlag === false) {
                     console.log('Case A: No new data.  Do nothing.');
                     return null; // No new data. Do nothing
-                } else if (readIdx < writeIdx && overwriteFlag === 0) {
+                } else if (readIdx < writeIdx && overwriteFlag === false) {
                     console.log('Case B: New data.  Read: readIdx-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                     currentIdx = readIdx;
                     endIdx = writeIdx - 1;
                     retrievedData = asyncGetDataFromFlashRange(currentIdx, endIdx);
                     return retrievedData;
-                } else if (readIdx > writeIdx && overwriteFlag === 0) {
+                } else if (readIdx > writeIdx && overwriteFlag === false) {
                     console.log('Case C: New data.  Read: readIdx-->125-->0-->writeIdx-1. readIdx: ' + readIdx + ', writeIdx: ' + writeIdx + ', overwriteFlag: ' + overwriteFlag);
                     return new Promise(function(resolve, reject) {
                             currentIdx = readIdx;
@@ -346,7 +343,8 @@ var app = {
     },
     onError: function(reason) {
         alert(reason, null, 'App Error', 'Ok');
-        console.log('Error in "App" Object. ' + reason);
+        console.log('Error in "App".');
+        console.log(reason);
     }
 };
 
@@ -569,17 +567,19 @@ var able = {
     read_dataout1: function() {
         var onRead_dataout1 = function(data) { // Data Passed Back as ArrayBuffer Type
             return new Promise(function(resolve, reject) {
-                var rawTemperature, rawTime, rawCRC, celsius;
+                var rawTemperature, unixTime, rawCRC, celsius, date;
                 // data_packet(11): [2 bytes Temp][4 bytes Pressure][4 bytes Time][1 byte CRC]
                 rawTemperature = new DataView(data).getUint16(0, true);
-                rawTime = new DataView(data).getUint16(6, true);
+                unixTime = new DataView(data).getUint32(6, true);
                 rawCRC = new DataView(data).getUint8(10, true)
                 celsius = ((rawTemperature / 16) - 1335) * (1150 / 4096);
-                console.log('Read DataOut1. rawTemperature: ' + rawTemperature + ', rawTime: ' + rawTime + ', rawCRC: ' + rawCRC + ', celsius: ' + celsius);
+                date = new Date(unixTime * 1000);
+                console.log('Read DataOut1. rawTemperature: ' + rawTemperature + ', rawTime: ' + unixTime + ', rawCRC: ' + rawCRC + ', celsius: ' + celsius + ', date: ' + date);
                 resolve({
                     "celsius": celsius,
                     "rawTemperature": rawTemperature,
-                    "rawTime": rawTime,
+                    "deviceTime": date,
+                    "deviceUnixTime": unixTime,
                     "rawCRC": rawCRC
                 });
             });
@@ -594,17 +594,19 @@ var able = {
     read_dataout2: function() {
         var onRead_dataout2 = function(data) { // Data Passed Back as ArrayBuffer Type
             return new Promise(function(resolve, reject) {
-                var rawTemperature, rawTime, rawCRC, celsius;
+                var rawTemperature, unixTime, rawCRC, celsius, date;
                 // data_packet(11): [2 bytes Temp][4 bytes Pressure][4 bytes Time][1 byte CRC]
                 rawTemperature = new DataView(data).getUint16(0, true);
-                rawTime = new DataView(data).getUint16(6, true);
+                unixTime = new DataView(data).getUint32(6, true);
                 rawCRC = new DataView(data).getUint8(10, true)
                 celsius = ((rawTemperature / 16) - 1335) * (1150 / 4096);
-                console.log('Read DataOut2. rawTemperature: ' + rawTemperature + ', rawTime: ' + rawTime + ', rawCRC: ' + rawCRC + ', celsius: ' + celsius);
+                date = new Date(unixTime * 1000);
+                console.log('Read DataOut2. rawTemperature: ' + rawTemperature + ', rawTime: ' + unixTime + ', rawCRC: ' + rawCRC + ', celsius: ' + celsius + ', date: ' + date);
                 resolve({
                     "celsius": celsius,
                     "rawTemperature": rawTemperature,
-                    "rawTime": rawTime,
+                    "deviceTime": date,
+                    "deviceUnixTime": unixTime,
                     "rawCRC": rawCRC
                 });
             });
@@ -619,17 +621,19 @@ var able = {
     read_dataout3: function() {
         var onRead_dataout3 = function(data) { // Data Passed Back as ArrayBuffer Type
             return new Promise(function(resolve, reject) {
-                var rawTemperature, rawTime, rawCRC, celsius;
+                var rawTemperature, unixTime, rawCRC, celsius, date;
                 // data_packet(11): [2 bytes Temp][4 bytes Pressure][4 bytes Time][1 byte CRC]
                 rawTemperature = new DataView(data).getUint16(0, true);
-                rawTime = new DataView(data).getUint16(6, true);
+                unixTime = new DataView(data).getUint32(6, true);
                 rawCRC = new DataView(data).getUint8(10, true)
                 celsius = ((rawTemperature / 16) - 1335) * (1150 / 4096);
-                console.log('Read DataOut3. rawTemperature: ' + rawTemperature + ', rawTime: ' + rawTime + ', rawCRC: ' + rawCRC + ', celsius: ' + celsius);
+                date = new Date(unixTime * 1000);
+                console.log('Read DataOut3. rawTemperature: ' + rawTemperature + ', rawTime: ' + unixTime + ', rawCRC: ' + rawCRC + ', celsius: ' + celsius + ', date: ' + date);
                 resolve({
                     "celsius": celsius,
                     "rawTemperature": rawTemperature,
-                    "rawTime": rawTime,
+                    "deviceTime": date,
+                    "deviceUnixTime": unixTime,
                     "rawCRC": rawCRC
                 });
             });
@@ -643,7 +647,8 @@ var able = {
     },
     onError: function(reason) {
         alert(reason, null, 'Bluetooth Error', 'Ok');
-        console.log('Error in "ABLE" Object. ' + reason);
+        console.log('Error in "ABLE".');
+        console.log(reason);
     }
 }
 
@@ -701,7 +706,8 @@ var data = {
     },
     onError: function(reason) {
         alert(reason, null, 'Data Error', 'Ok');
-        console.log('Error in "Data" Object. ' + reason);
+        console.log('Error in "Data".');
+        console.log(reason);
     }
 }
 
