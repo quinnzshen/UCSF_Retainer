@@ -659,6 +659,7 @@ var data = {
     },
     saveDataToCloud: function(array) {
         var dataToUpload = array,
+            dataPoints = [],
             DeviceData = Parse.Object.extend('deviceData1');
         if (array.length === 0) {
             alert('No new data to upload to cloud', null, 'No New Data', 'Ok');
@@ -668,18 +669,22 @@ var data = {
 
         // TODO: Use Parse.Promise & Consider using destroy() in Parse API to filter array & prevent duplicate entries of data
         console.log('Uploading data to Parse.com');
-        var dataPoints = [];
         $.each(dataToUpload, function(index, value) {
             var obj = value,
-                dataPoint = new DeviceData();
+                dataPoint = new DeviceData(),
+                compareDate = new Date('February 2, 2011 03:24:00'); // BLE chip released on this date, not possible to have older data
+            if (obj.deviceTime < compareDate) {
+                console.log('Invalid Data. Throwing Out: ' + JSON.stringify(obj));
+                return;
+            }
+            console.log('setting object');
             dataPoint.set(obj);
             dataPoints.push(dataPoint);
-
         });
 
         Parse.Object.saveAll(dataPoints, {
             success: function(list) {
-                console.log('All Data Pushed to Parse.com');
+                console.log('All Data Pushed to Parse.com.  Uploaded ' + dataPoints.length + ' data objects.');
                 array.length = 0; // Clear orig. source array passed in as argument
             },
             error: function(error) {
