@@ -138,12 +138,15 @@ var app = {
     },
     touchDeviceListElement: function(e) {
         e.target.style.backgroundColor = '#cccccc';
+        e.target.disabled = true;
         retainer.device_uuid = e.target.dataset.deviceId;
         able.connect(retainer.device_uuid)
             .then(function(info) { // On Each Connection, Update Device Time
                 var date = new Date();
                 able.write_time(date);
-                disconnectButton.style.backgroundColor = '#f0f0ff';
+                e.target.style.backgroundColor = '#f0f0ff';
+                e.target.disabled = false;
+
             })
             .then(able.read_time)
             .then(app.showDetailPage)
@@ -151,15 +154,18 @@ var app = {
     },
     touchDisconnectButton: function(e) {
         disconnectButton.style.backgroundColor = '#cccccc';
+        disconnectButton.disabled = true;
         able.disconnect(retainer.device_uuid)
             .then(function(value) {
                 disconnectButton.style.backgroundColor = '#f0f0ff';
+                disconnectButton.disabled = false;
             })
             .then(app.showMainPage)
             .catch(app.onError);
     },
     touchTemperatureButton: function() {
         readTemperatureButton.style.backgroundColor = '#ff1e05';
+        readTemperatureButton.disabled = true;
         able.read_temperature()
             .then(function(result) {
                 console.log(result);
@@ -167,6 +173,7 @@ var app = {
                 temperatures.push(result.celsius);
                 temperatureList.innerHTML = temperatures.join('<br/>');
                 readTemperatureButton.style.backgroundColor = '#f0f0ff';
+                readTemperatureButton.disabled = false;
             });
     },
     touchNotifyTemperatureButton: function() {
@@ -197,17 +204,21 @@ var app = {
     },
     touchPullDeviceDataButton: function() {
         pullDeviceDataButton.style.backgroundColor = '#72ff52';
+        pullDeviceDataButton.disabled = true;
         app.pullDeviceData()
             .then(function(value) {
                 pullDeviceDataButton.style.backgroundColor = '#f0f0ff';
+                pullDeviceDataButton.disabled = false;
             })
             .catch(app.onError);
     },
     touchPushDataToCloudButton: function() {
         pushDataToCloudButton.style.backgroundColor = '#1a34ff';
+        pushDataToCloudButton.disabled = true;
         data.saveDataToCloud(pulledData)
             .then(function(value) {
                 pushDataToCloudButton.style.backgroundColor = '#f0f0ff';
+                pushDataToCloudButton.disabled = false;
             })
             .catch(app.onError);
     },
@@ -703,7 +714,7 @@ var data = {
             if (array.length === 0) {
                 alert('No new data to upload to cloud', null, 'No New Data', 'Ok');
                 console.log('No New Data To Be Pushed to Parse.com');
-                return;
+                reject('No New Data To Be Pushed to Parse.com');
             }
             // TODO: Use Parse.Promise & Consider using destroy() in Parse API to filter array & prevent duplicate entries of data
             console.log('Uploading data to Parse.com');
