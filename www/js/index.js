@@ -83,8 +83,8 @@ var pulledData = [];
 var app = {
     // Application Constructor
     initialize: function() {
+        this.hideAllUI();
         this.bindEvents();
-        this.showMainPage();
     },
     // Bind Event Listeners
     //
@@ -103,18 +103,25 @@ var app = {
         deviceList.addEventListener('touchend', this.touchDeviceListElement, false);
         readTemperatureButton.addEventListener('touchend', this.touchTemperatureButton, false);
         disconnectButton.addEventListener('touchend', this.touchDisconnectButton, false);
-        notifyTemperatureButton.addEventListener('touchend', this.touchTemperatureNotifyButton, false);
+        notifyTemperatureButton.addEventListener('touchend', this.touchNotifyTemperatureButton, false);
         pullDeviceDataButton.addEventListener('touchend', this.touchPullDeviceDataButton, false);
         pushDataToCloudButton.addEventListener('touchend', this.touchPushDataToCloudButton, false);
         testButton.addEventListener('touchend', this.testButton, false);
     },
     onDeviceReady: function() {
-        app.refreshDeviceList();
-        data.initialize();  // Parse initialization must be after deviceready
+        data.initialize(); // Parse initialization must be after deviceready
+        app.showMainPage();
     },
     refreshDeviceList: function() {
+        if(app.timeout) {
+            window.clearTimeout(app.timeout);
+        }
+        refreshButton.style.backgroundColor = '#cccccc';
+        app.timeout = window.setTimeout(function() {
+            refreshButton.style.backgroundColor = '#f0f0ff';
+        }, 5000);
         deviceList.innerHTML = '';
-        ble.scan([retainer.xgatt_service.uuid], 5, app.onDiscoverDevice, app.onError);
+        able.scan([retainer.xgatt_service.uuid], 5, app.onDiscoverDevice)
         // TODO: Change to startScan & stopScan when move away page
         // Make scan more robust by storing device UUId in array in "onDiscoverDevice" & have UI show the array contents;
         // dynamically remove devices that move out of range
@@ -130,32 +137,40 @@ var app = {
         deviceList.appendChild(listItem);
     },
     touchDeviceListElement: function(e) {
+        e.target.style.backgroundColor = '#cccccc';
         retainer.device_uuid = e.target.dataset.deviceId;
         able.connect(retainer.device_uuid)
             .then(function(info) { // On Each Connection, Update Device Time
                 var date = new Date();
                 able.write_time(date);
+                disconnectButton.style.backgroundColor = '#f0f0ff';
             })
             .then(able.read_time)
             .then(app.showDetailPage)
             .catch(app.onError);
     },
     touchDisconnectButton: function(e) {
+        disconnectButton.style.backgroundColor = '#cccccc';
         able.disconnect(retainer.device_uuid)
+            .then(function(value) {
+                disconnectButton.style.backgroundColor = '#f0f0ff';
+            })
             .then(app.showMainPage)
             .catch(app.onError);
     },
     touchTemperatureButton: function() {
+        readTemperatureButton.style.backgroundColor = '#ff1e05';
         able.read_temperature()
             .then(function(result) {
                 console.log(result);
                 temperatureValue.innerHTML = result.celsius.toString().substring(0, 7) + '&ordm;C';
                 temperatures.push(result.celsius);
                 temperatureList.innerHTML = temperatures.join('<br/>');
+                readTemperatureButton.style.backgroundColor = '#f0f0ff';
             });
     },
-    touchTemperatureNotifyButton: function() {
-        console.log('touchTemperatureNotifyButton');
+    touchNotifyTemperatureButton: function() {
+        console.log('touchNotifyTemperatureButton');
         var updateUIOnNotification = function(value) {
             var celsius = value.celsius;
             temperatureValue.innerHTML = celsius.toString().substring(0, 7) + '&ordm;C';
@@ -167,6 +182,7 @@ var app = {
                 .then(function(value) {
                     if (retainer.xgatt_temperature.notifying) {
                         notifyTemperatureButton.innerHTML = 'Stop Notifications';
+                        notifyTemperatureButton.style.backgroundColor = '#ff1e05';
                     }
                 })
                 .catch(app.onError);
@@ -174,19 +190,30 @@ var app = {
             able.stopNotify_temperature()
                 .then(function(value) {
                     notifyTemperatureButton.innerHTML = 'Start Notifications';
+                    notifyTemperatureButton.style.backgroundColor = '#f0f0ff';
                 })
                 .catch(app.onError);
         };
     },
     touchPullDeviceDataButton: function() {
-        app.pullDeviceData();
+        pullDeviceDataButton.style.backgroundColor = '#72ff52';
+        app.pullDeviceData()
+            .then(function(value) {
+                pullDeviceDataButton.style.backgroundColor = '#f0f0ff';
+            })
+            .catch(app.onError);
     },
     touchPushDataToCloudButton: function() {
-        data.saveDataToCloud(pulledData);
+        pushDataToCloudButton.style.backgroundColor = '#1a34ff';
+        data.saveDataToCloud(pulledData)
+            .then(function(value) {
+                pushDataToCloudButton.style.backgroundColor = '#f0f0ff';
+            })
+            .catch(app.onError);
     },
     pullDeviceData: function() {
         console.log('Starting Pull Device Data Sequence');
-        Promise.all([
+        return Promise.all([
                 able.read_readIndex(),
                 able.read_writeIndex(),
                 able.read_overwriteFlag()
@@ -323,6 +350,10 @@ var app = {
     testButton: function() {
         data.saveTestObject();
     },
+    hideAllUI: function() {
+        mainPage.hidden = true;
+        detailPage.hidden = true;
+    },
     showMainPage: function() {
         console.log('Showing Main Page');
         mainPage.hidden = false;
@@ -350,6 +381,13 @@ var app = {
 
 // "able" = Asynchronous BLE
 var able = {
+    scan: function(service_uuid_array, scanTime, callback) {
+        return new Promise(function(resolve, reject) {
+                ble.scan(service_uuid_array, scanTime, resolve, able.onError);
+            })
+            .then(callback)
+            .catch(able.onError);
+    },
     connect: function(device_uuid) {
         var onConnect = function(info) {
             return new Promise(function(resolve, reject) {
@@ -658,41 +696,41 @@ var data = {
             'CtcPrTok6S5PgoW7eWQRQANQgeAgI9e3p6Csjlui');
     },
     saveDataToCloud: function(array) {
-        var dataToUpload = array,
-            dataPoints = [],
-            DeviceData = Parse.Object.extend('deviceData1');
-        if (array.length === 0) {
-            alert('No new data to upload to cloud', null, 'No New Data', 'Ok');
-            console.log('No New Data To Be Pushed to Parse.com');
-            return;
-        }
-
-        // TODO: Use Parse.Promise & Consider using destroy() in Parse API to filter array & prevent duplicate entries of data
-        console.log('Uploading data to Parse.com');
-        $.each(dataToUpload, function(index, value) {
-            var obj = value,
-                dataPoint = new DeviceData(),
-                compareDate = new Date('February 2, 2011 03:24:00'); // BLE chip released on this date, not possible to have older data
-            if (obj.deviceTime < compareDate) {
-                console.log('Invalid Data. Throwing Out: ' + JSON.stringify(obj));
+        return new Promise(function(resolve, reject) {
+            var dataToUpload = array,
+                dataPoints = [],
+                DeviceData = Parse.Object.extend('deviceData1');
+            if (array.length === 0) {
+                alert('No new data to upload to cloud', null, 'No New Data', 'Ok');
+                console.log('No New Data To Be Pushed to Parse.com');
                 return;
             }
-            console.log('setting object');
-            dataPoint.set(obj);
-            dataPoints.push(dataPoint);
-        });
-
-        Parse.Object.saveAll(dataPoints, {
-            success: function(list) {
-                console.log('All Data Pushed to Parse.com.  Uploaded ' + dataPoints.length + ' data objects.');
-                array.length = 0; // Clear orig. source array passed in as argument
-            },
-            error: function(error) {
-                data.onError(error);
-            }
-        });
-
-        return dataPoints;
+            // TODO: Use Parse.Promise & Consider using destroy() in Parse API to filter array & prevent duplicate entries of data
+            console.log('Uploading data to Parse.com');
+            $.each(dataToUpload, function(index, value) {
+                var obj = value,
+                    dataPoint = new DeviceData(),
+                    compareDate = new Date('February 2, 2011 03:24:00'); // BLE chip released on this date, not possible to have older data
+                if (obj.deviceTime < compareDate) {
+                    console.log('Invalid Data. Throwing Out: ' + JSON.stringify(obj));
+                    return;
+                }
+                console.log('setting object');
+                dataPoint.set(obj);
+                dataPoints.push(dataPoint);
+            });
+            Parse.Object.saveAll(dataPoints, {
+                success: function(list) {
+                    console.log('All Data Pushed to Parse.com.  Uploaded ' + dataPoints.length + ' data objects.');
+                    array.length = 0; // Clear orig. source array passed in as argument
+                    resolve(dataPoints);
+                },
+                error: function(error) {
+                    reject(error);
+                    data.onError(error);
+                }
+            });
+        })
     },
     saveTestObject: function() {
         console.log('Saving TestObject to Parse.com');
@@ -727,14 +765,14 @@ Number.isNumeric = Number.isNumeric || function(n) {
     return !isNaN(parseFloat(n)) && isFinite(n);
 }
 
-// function wait(ms) {
-//     return function() {
-//         return new Promise(function(resolve, reject) {
-//             window.setTimeout(function() {
-//                 resolve();
-//             }, ms);
-//         });
-//     }
-// };
+function wait(ms) {
+    return function() {
+        return new Promise(function(resolve, reject) {
+            window.setTimeout(function() {
+                resolve();
+            }, ms);
+        });
+    }
+};
 
 app.initialize();
