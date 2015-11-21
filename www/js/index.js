@@ -345,6 +345,7 @@ var app = {
                                     for (var i = 0; i < values.length; i++) {
                                         values[i].flashIndex = index;
                                         values[i].flashSubindex = i;
+                                        values[i].deviceUUID = retainer.device_uuid;
                                     };
                                     resolve(values);
                                 })
