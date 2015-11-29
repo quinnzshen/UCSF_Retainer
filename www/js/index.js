@@ -21,6 +21,8 @@
    pullDeviceDataButton, testButton, ble, temperatureValue, temperatureList, detailPage, mainPage, alert */
 'use strict';
 
+
+
 var retainer = {
     device_uuid: null,
     xgatt_service: {
@@ -704,8 +706,12 @@ var able = {
 
 var data = {
     initialize: function() {
-        Parse.initialize('GhbTTSKlg6pCWzSSGpXzvwyMtiSTYzrwWpiDBbIz',
-            'CtcPrTok6S5PgoW7eWQRQANQgeAgI9e3p6Csjlui');
+        var phil_app_id = 'GhbTTSKlg6pCWzSSGpXzvwyMtiSTYzrwWpiDBbIz';
+        var phil_javascript_id = 'CtcPrTok6S5PgoW7eWQRQANQgeAgI9e3p6Csjlui';
+        var test_app_id = 'r3qEj28qncJL76GkjmghLyVvhY8fTFGiXlufGMnW';
+        var test_javascript_id = 'Mo5yK2Jee4DDVSOIrTnwbUVARFxMr6nmhwbT17K4';
+        Parse.initialize(test_app_id,
+            test_javascript_id);
     },
     saveDataToCloud: function(array) {
         return new Promise(function(resolve, reject) {
@@ -786,5 +792,3 @@ function wait(ms) {
         });
     }
 };
-
-app.initialize();

@@ -6,17 +6,93 @@
     <meta name="format-detection" content="telephone=no">
     <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
     <link rel="stylesheet" type="text/css" href="css/index.css">
+    <link rel="stylesheet" type="text/css" href="css/foundation.css">
+    <link rel="stylesheet" type="text/css" href="css/app.css">
+
     <title>UCSF Smart Retainer</title>
+        <script type="text/javascript" src="js/vendor/jquery.js"></script>
+    <script type="text/javascript" src="js/vendor/underscore.js"></script>
+     <script type="text/javascript" src="js/vendor/handlebars-v1.3.0.js"></script>
+
+    <script type="text/javascript" src="js/lib/parse-1.2.19.min.js"></script>
+
+    <script type="text/javascript" src = "js/signin.js"></script>
+
 </head>
 
 <body>
+<div class="spacer">
+</div>
+
+  <a class="signup" href="#" style="display:none" data-reveal-id="myModal">Signup</a>
+
+<!-- modal content -->
+
+
+
+    
+    
+<div id="myModal" class="reveal-modal modal-container" data-reveal aria-labelledby="login or sign up" aria-hidden="true" role="dialog">
+    <script id="login-tpl" type="text/x-handlebars-template">
+    <div class="row">
+
+
+            <div class="medium-6 columns auth-plain">
+                <div class="signup-panel left-solid">
+                <!--Log In Form-->
+                    <form class="form-signin" role="form">
+                        <h2 class="form-signin-heading">Please Log In</h2>
+                        <input type="text" name="username" class="form-control" placeholder="Username" required="" autofocus="" >
+                        <input type="password" name="password" class="form-control" placeholder="Password" >
+                        <button class="btn btn-lg btn-primary btn-block" type="submit">Log In</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="medium-6 columns auth-plain">
+                <div class="signup-panel newusers">
+                <!--Sign Up Form-->
+                    <form class="form-signup" role="form">
+                        <h2 class="form-signup-heading">Make an Account</h2>
+                        <input type="text" name="username" class="form-control" placeholder="Username" required="" autofocus="">
+                        <input type="password" name="password" class="form-control" placeholder="Password" required="">
+                        <button class="btn btn-lg btn-primary btn-block" type="submit">Sign Up</button>
+                    </form>
+                </div>          
+            </div>
+     <a class="close-reveal-modal" aria-label="Close">&#215;</a>
+ 
+    </div><!--End of Row-->
+    </script>
+
+</div>
+
+
+<div class="app-header">
+    <script id="welcome-tpl" type="text/x-handlebars-template">
+    <div class="row">
+        <div class="small-6 small-offset-3 columns">
+
+        <h2>Welcome, {{username}}!</h2>
+        </div>
+    </div>
+    </script>
+
+</div>
+
     <div class="app">
+        <script id="app-tpl" type="text/x-handlebars-template">
+
+
         <p style="text-align:center; padding-top: 20px;">Choose a peripheral</p>
+
         <div id="mainPage">
             <button id="refreshButton">Refresh</button>
             <ul id="deviceList">
             </ul>
         </div>
+        
+
         <div id="detailPage">
             <div id="temperatureValue"></div>
             <button id="readTemperatureButton">Read Temperature</button>
@@ -28,16 +104,23 @@
             <ul id="temperatureList">
             </ul>
         </div>
+    </script>
+
     </div>
     <!--         <input type="button" onclick="location.href='signup.html';" value="Go to signup page." />
         <input type="button" onclick="location.href='signup.html';" value="Go to login page." /> -->
     <script type="text/javascript" src="cordova.js"></script>
-    <script type="text/javascript" src="js/lib/jquery-1.11.3.js"></script>
-    <script type="text/javascript" src="js/lib/parse-1.6.7.js"></script>
+
+    <script type="text/javascript" src = "js/lib/react.js"></script>
+    <script type="text/javascript" src = "js/foundation.min.js"></script>
+
+    <script type="text/javascript" src = "js/app.js"></script>
+
     <!--<script type="text/javascript" src="js/lib/bluebird.js"></script>-->
+    <script type="text/javascript" src = "js/test.js"></script>
     <script type="text/javascript" src="js/index.js"></script>
     <script type="text/javascript">
-    app.initialize();
+    
     </script>
 </body>
 
