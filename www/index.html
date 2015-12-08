@@ -11,6 +11,8 @@
 
     <title>UCSF Smart Retainer</title>
         <script type="text/javascript" src="js/vendor/jquery.js"></script>
+    <script type="text/javascript" src="js/lib/jquery-ui.js"></script>
+
     <script type="text/javascript" src="js/vendor/underscore.js"></script>
      <script type="text/javascript" src="js/vendor/handlebars-v1.3.0.js"></script>
 
@@ -44,6 +46,7 @@
                         <h2 class="form-signin-heading">Please Log In</h2>
                         <input type="text" name="username" class="form-control" placeholder="Username" required="" autofocus="" >
                         <input type="password" name="password" class="form-control" placeholder="Password" >
+                        <div id='login-error'></div>
                         <button class="btn btn-lg btn-primary btn-block" type="submit">Log In</button>
                     </form>
                 </div>
@@ -56,6 +59,8 @@
                         <h2 class="form-signup-heading">Make an Account</h2>
                         <input type="text" name="username" class="form-control" placeholder="Username" required="" autofocus="">
                         <input type="password" name="password" class="form-control" placeholder="Password" required="">
+                        <div id='signup-error'></div>
+
                         <button class="btn btn-lg btn-primary btn-block" type="submit">Sign Up</button>
                     </form>
                 </div>          
@@ -75,6 +80,10 @@
 
         <h2>Welcome, {{username}}!</h2>
         </div>
+
+        <form class="form-logout" role="form">
+            <button class="btn btn-lg btn-primary btn-block" type="submit">Log Out</button>
+        </form>
     </div>
     </script>
 

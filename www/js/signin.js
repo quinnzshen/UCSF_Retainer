@@ -1,5 +1,4 @@
 
-
 $(function() {
 
   Parse.$ = jQuery;
@@ -9,7 +8,6 @@ $(function() {
   var test_javascript_key = 'Mo5yK2Jee4DDVSOIrTnwbUVARFxMr6nmhwbT17K4';
 
   Parse.initialize(test_app_id, test_javascript_key);
-
 
   // var TestObject = Parse.Object.extend("TestObject");
   // var testObject = new TestObject();
@@ -54,7 +52,7 @@ $(function() {
             },
             // If there is an error
             error: function(user, error) {
-
+              $('#login-error').html('<p>Invalid Login Parameters</p>');
               console.log(error);
             }
         });
@@ -85,7 +83,13 @@ $(function() {
             },
             // If there is an error
             error: function(user, error) {
-              self.$(".signup-form .error").html(_.escape(error.message)).show();
+              if (error.code == "202"){
+                $('#signup-error').html('<p>Username already taken</p>');
+              }
+              else {
+                $('#signup-error').html('<p>Something went wrong</p>');
+              };
+              // alert("Error: " + error.code + " " + error.message);
             }
         });
     },
@@ -97,9 +101,30 @@ $(function() {
   }),
   WelcomeView = Parse.View.extend({
         template: Handlebars.compile($('#welcome-tpl').html()),
+
+        events: {
+          'submit .form-logout': 'logout',
+
+        },
         render: function(){
             var attributes = this.model.toJSON();
             this.$el.html(this.template(attributes));
+        },
+       logout: function(e) {
+        //prevent default submit event
+        e.preventDefault();
+
+        console.log('Logged Out the User')
+
+        // Prevent Default Submit Event
+ 
+        Parse.User.logOut();
+
+        //reboot the website with the login modal
+        $(document).ready(function(){$('#myModal').foundation('reveal', 'open')});
+        var loginView = new LoginView();
+        loginView.render();
+        $('.modal-container').html(loginView.el);
         }
     });
   AppView = Parse.View.extend({
@@ -111,8 +136,24 @@ $(function() {
             app.initialize();
         }
     });
-  var loginView = new LoginView();
-  loginView.render();
-  $('.modal-container').html(loginView.el);
+  var currentUser = Parse.User.current();
+  if (currentUser) {
+    console.log(currentUser);
+      // do stuff with the user
+    var welcomeView = new WelcomeView({ model: currentUser });
+    var appView = new AppView();
+    welcomeView.render();
+    $('.app-header').html(welcomeView.el);
+    $('.app').html(appView.el);
+    appView.render();
+    } 
+  else {
+      // show the signup or login page
+    $(document).ready(function(){$('#myModal').foundation('reveal', 'open')});
+    var loginView = new LoginView();
+    loginView.render();
+    $('.modal-container').html(loginView.el);
+    }
+  
   
 });
