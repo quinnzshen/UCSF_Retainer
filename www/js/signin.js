@@ -38,14 +38,10 @@ $(function() {
             success: function(user) {
               console.log('Succesfully Logged In')
               $('#myModal').foundation('reveal', 'close');
-
-              $('#myModal').foundation('reveal', 'close');
-
               var welcomeView = new WelcomeView({ model: user });
               var appView = new AppView();
               welcomeView.render();
               $('.app-header').html(welcomeView.el);
-
               $('.app').html(appView.el);
               appView.render();
 
@@ -136,6 +132,7 @@ $(function() {
             app.initialize();
         }
     });
+  
   var currentUser = Parse.User.current();
   if (currentUser) {
     console.log(currentUser);
