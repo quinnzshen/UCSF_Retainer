@@ -9,21 +9,17 @@ $(function() {
 
   Parse.initialize(test_app_id, test_javascript_key);
 
-  // var TestObject = Parse.Object.extend("TestObject");
-  // var testObject = new TestObject();
-  // testObject.save({foo: "bar"}).then(function(object) {
-  //   alert("yay! it worked");
-  // });
 
-  var LoginView = Parse.View.extend({
+  var LoginView = Backbone.View.extend({
     template: Handlebars.compile($('#login-tpl').html()),
 
     events: {
         'submit .form-signin': 'logIn',
         'submit .form-signup': 'signUp',
+        'click #SignUpButton': 'launchSignUpModal',
     },
     logIn: function(e) {
- 
+        console.log('Attempting to Log-In')
         // Prevent Default Submit Event
         e.preventDefault();
  
@@ -37,14 +33,7 @@ $(function() {
             // If the username and password matches
             success: function(user) {
               console.log('Succesfully Logged In')
-              $('#myModal').foundation('reveal', 'close');
-              var welcomeView = new WelcomeView({ model: user });
-              var appView = new AppView();
-              welcomeView.render();
-              $('.app-header').html(welcomeView.el);
-              $('.app').html(appView.el);
-              appView.render();
-
+              viewController.welcomeUser(user);
             },
             // If there is an error
             error: function(user, error) {
@@ -67,14 +56,8 @@ $(function() {
         Parse.User.signUp(username, password, { ACL: new Parse.ACL() }, {
             success: function(user) {
               console.log('Succesfully Made a New Account')
-              $('#myModal').foundation('reveal', 'close');
+              viewController.welcomeUser(user);
 
-              var welcomeView = new WelcomeView({ model: user });
-              var appView = new AppView();
-              welcomeView.render();
-              $('.app-header').html(welcomeView.el);
-              $('.app').html(appView.el);
-              appView.render();
 
             },
             // If there is an error
@@ -89,13 +72,22 @@ $(function() {
             }
         });
     },
+    launchSignUpModal: function(){
+      $(document).foundation();
+      $('#myModal').foundation('open');
+    },
+    onClose: function(){
+      this.model.unbind("change", this.render);
+    },
 
     render: function(){
-
       this.$el.html(this.template());
+      console.log('rendering Login Page');
+
     }
-  }),
-  WelcomeView = Parse.View.extend({
+  });
+  
+  var WelcomeView = Backbone.View.extend({
         template: Handlebars.compile($('#welcome-tpl').html()),
 
         events: {
@@ -107,23 +99,11 @@ $(function() {
             this.$el.html(this.template(attributes));
         },
        logout: function(e) {
-        //prevent default submit event
-        e.preventDefault();
 
-        console.log('Logged Out the User')
-
-        // Prevent Default Submit Event
- 
-        Parse.User.logOut();
-
-        //reboot the website with the login modal
-        $(document).ready(function(){$('#myModal').foundation('reveal', 'open')});
-        var loginView = new LoginView();
-        loginView.render();
-        $('.modal-container').html(loginView.el);
         }
     });
-  AppView = Parse.View.extend({
+
+  var AppView = Backbone.View.extend({
         template: Handlebars.compile($('#app-tpl').html()),
         render: function(){
             // var attributes = this.model.toJSON();
@@ -132,25 +112,118 @@ $(function() {
             app.initialize();
         }
     });
+
+var ContentView = Backbone.View.extend({
+  /*
+   * Initialize with the template-id
+   */
+  initialize: function(options) {
+    this.template = options.template;
+  },
+  
+  /*
+   * Get the template content and render it into a new div-element
+   */
+  render: function() {
+    var content = $(this.template).html();
+    $(this.el).html(content);
+
+    return this;
+  }
+});
+
+var viewController = Backbone.Router.extend({
+  routes: {
+    "": "index",
+    "userAuth": "userAuthentication",
+    "logOut": "logOutUser",
+    "app": "appStart",
+
+  },
+  index: function(){
+    $(document.body).append("Index route has been called..");
+  },
+  initialize: function(el){
+    this.el = el;
+    this.loginView = new ContentView({template: '#LoginContainer'});
+    this.welcomeView = new ContentView({template: '.app-header'});
+    this.appView = new ContentView({template:'.app'}) ;
+  },
+
+  currentView: null,
+
+  switchView: function(view) {
+    if (this.currentView) {
+      // Detach the old view
+      this.currentView.remove();
+    }
+
+    // Move the view element into the DOM (replacing the old content)
+    this.el.html(view.el);
+
+    // Render view after it is in the DOM (styles are applied)
+    view.render();
+
+    this.currentView = view;
+  },
+
+  welcomeUser: function(currentUser){
+    var welcomeView = new WelcomeView({ model: currentUser });
+    // var AppView = new AppView();
+    this.switchView(welcomeView)
+
+  },
+
+  userAuthentication: function(){
+    var loginView = new LoginView();
+    this.switchView(loginView);
+    // $('#LoginContainer').html(loginView.el);
+    // }
+  },
+
+  appStart: function(){
+  },
+
+  logOutUser: function(){
+    console.log('Logging the User Out');
+    Parse.User.logOut();
+    this.userAuthentication();
+
+  }
+
+
+});
   
   var currentUser = Parse.User.current();
-  if (currentUser) {
+  Parse.User.logOut();
+
+  var viewController = new viewController($('#content'));
+
+
+
+  Backbone.history.start({pushState: true})
+
+  if (currentUser){
+
     console.log(currentUser);
-      // do stuff with the user
-    var welcomeView = new WelcomeView({ model: currentUser });
-    var appView = new AppView();
-    welcomeView.render();
-    $('.app-header').html(welcomeView.el);
-    $('.app').html(appView.el);
-    appView.render();
+    // do stuff with the user
+
+    // var welcomeView = new WelcomeView({ model: currentUser });
+    // var AppView = new AppView();
+    // welcomeView.render();
+    // $('.app-header').html(welcomeView.el);
+    // $('.app').html(AppView.el);
+    // AppView.render();
+    viewController.welcomeUser(currentUser);
     } 
   else {
-      // show the signup or login page
-    $(document).ready(function(){$('#myModal').foundation('reveal', 'open')});
-    var loginView = new LoginView();
-    loginView.render();
-    $('.modal-container').html(loginView.el);
+
+    viewController.userAuthentication();
+          // show the signup or login page
+    // var loginView = new LoginView();
+    // loginView.render();
+    // $('#LoginContainer').html(loginView.el);
     }
   
-  
+
 });

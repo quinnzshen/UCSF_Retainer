@@ -10,13 +10,15 @@
     <link rel="stylesheet" type="text/css" href="css/app.css">
 
     <title>UCSF Smart Retainer</title>
-        <script type="text/javascript" src="js/vendor/jquery.js"></script>
+        <script type="text/javascript" src="js/lib/jquery-1.11.3.js"></script>
     <script type="text/javascript" src="js/lib/jquery-ui.js"></script>
 
+    <script type="text/javascript" src="js/vendor/handlebars-v4.0.5.js"></script>
     <script type="text/javascript" src="js/vendor/underscore.js"></script>
-     <script type="text/javascript" src="js/vendor/handlebars-v1.3.0.js"></script>
+    <script type="text/javascript" src="js/vendor/backbone.js"></script>
+    <script type="text/javascript" src="js/vendor/backbone-view.js"></script>
 
-    <script type="text/javascript" src="js/lib/parse-1.2.19.min.js"></script>
+    <script type="text/javascript" src="js/lib/parse-1.6.7.js"></script>
 
     <script type="text/javascript" src = "js/signin.js"></script>
 
@@ -30,47 +32,68 @@
 
 <!-- modal content -->
 
+    <div class="container">
+
+        <div id="content" class="content">
+            <!-- Content div that is filled by the router -->
+        </div>
+
+        <footer>
+        <div class="row">
+            <p>SmartByte</p>
+        </div>
+        </footer>
+    </div>
+
+<div id="LoginContainer">
+<script id="login-tpl" type="text/x-handlebars-template">
 
 
-    
-    
-<div id="myModal" class="reveal-modal modal-container" data-reveal aria-labelledby="login or sign up" aria-hidden="true" role="dialog">
-    <script id="login-tpl" type="text/x-handlebars-template">
-    <div class="row">
 
-
-            <div class="medium-6 columns auth-plain">
-                <div class="signup-panel left-solid">
-                <!--Log In Form-->
-                    <form class="form-signin" role="form">
-                        <h2 class="form-signin-heading">Please Log In</h2>
-                        <input type="text" name="username" class="form-control" placeholder="Username" required="" autofocus="" >
-                        <input type="password" name="password" class="form-control" placeholder="Password" >
-                        <div id='login-error'></div>
-                        <button class="btn btn-lg btn-primary btn-block" type="submit">Log In</button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="medium-6 columns auth-plain">
-                <div class="signup-panel newusers">
-                <!--Sign Up Form-->
-                    <form class="form-signup" role="form">
-                        <h2 class="form-signup-heading">Make an Account</h2>
-                        <input type="text" name="username" class="form-control" placeholder="Username" required="" autofocus="">
-                        <input type="password" name="password" class="form-control" placeholder="Password" required="">
-                        <div id='signup-error'></div>
-
-                        <button class="btn btn-lg btn-primary btn-block" type="submit">Sign Up</button>
-                    </form>
-                </div>          
-            </div>
-     <a class="close-reveal-modal" aria-label="Close">&#215;</a>
- 
-    </div><!--End of Row-->
-    </script>
-
+<div class="row"><!--Container for Login Form-->
+    <div class="medium-6 medium-offset-3 columns auth-plain">
+        <div class="signup-panel left-solid">
+        <!--Log In Form-->
+            <form class="form-signin" role="form">
+                <h4>Please Log In</h4>
+                <input type="text" name="username" placeholder="Username" required="" autofocus="">
+                <input type="password" value="password" name="password" placeholder="Password" >
+                <div id='login-error'></div>
+                <button class="success button" type="submit">Log In</button>
+            </form>
+        </div>
+    </div>
 </div>
+<div class="row">
+    <div class="medium-6 medium-offset-3 columns auth-plain">
+        <button id="SignUpButton" class="success button" type="button">Create An Account</button>
+    </div>
+</div>
+
+    <div id="myModal" class="reveal modal-container" data-reveal>
+        <div class="row">
+
+                <div class="medium-6 columns auth-plain">
+                    <div class="signup-panel newusers">
+                    <!--Sign Up Form-->
+                        <form class="form-signup" role="form">
+                            <h4>Make an Account</h4>
+                            <input type="text" name="username" class="form-control" placeholder="Username" required="" autofocus="">
+                            <input type="password" name="password" class="form-control" placeholder="Password" required="">
+                            <div id='signup-error'></div>
+
+                            <button class="success button" type="submit">Sign Up</button>
+                        </form>
+                    </div>          
+                </div>
+        </div><!--End of Row-->
+
+    </div>
+</script>
+</div>
+
+    
+    
 
 
 <div class="app-header">
@@ -81,10 +104,8 @@
         <h2>Welcome, {{username}}!</h2>
         </div>
 
-        <form class="form-logout" role="form">
-            <button class="btn btn-lg btn-primary btn-block" type="submit">Log Out</button>
-        </form>
-    </div>
+        <a href="#logOut">LogOut</a>
+    </div
     </script>
 
 </div>
@@ -121,8 +142,7 @@
     <script type="text/javascript" src="cordova.js"></script>
 
     <script type="text/javascript" src = "js/lib/react.js"></script>
-    <script type="text/javascript" src = "js/foundation.min.js"></script>
-
+    <script type="text/javascript" src = "js/foundation.js"></script>
     <script type="text/javascript" src = "js/app.js"></script>
 
     <!--<script type="text/javascript" src="js/lib/bluebird.js"></script>-->
