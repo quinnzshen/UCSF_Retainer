@@ -1,6 +1,4 @@
-
 $(function() {
-
   Parse.$ = jQuery;
 
   // Initialize Parse with your Parse application javascript keys
@@ -8,7 +6,6 @@ $(function() {
   var test_javascript_key = 'Mo5yK2Jee4DDVSOIrTnwbUVARFxMr6nmhwbT17K4';
 
   Parse.initialize(test_app_id, test_javascript_key);
-
 
   var LoginView = Backbone.View.extend({
     template: Handlebars.compile($('#login-tpl').html()),
@@ -18,6 +15,7 @@ $(function() {
         'submit .form-signup': 'signUp',
         'click #SignUpButton': 'launchSignUpModal',
     },
+
     logIn: function(e) {
         console.log('Attempting to Log-In')
         // Prevent Default Submit Event
@@ -33,7 +31,7 @@ $(function() {
             // If the username and password matches
             success: function(user) {
               console.log('Succesfully Logged In')
-              viewController.welcomeUser(user);
+              app_router.welcomeUser(user);
             },
             // If there is an error
             error: function(user, error) {
@@ -56,7 +54,7 @@ $(function() {
         Parse.User.signUp(username, password, { ACL: new Parse.ACL() }, {
             success: function(user) {
               console.log('Succesfully Made a New Account')
-              viewController.welcomeUser(user);
+              app_router.welcomeUser(user);
 
 
             },
@@ -72,18 +70,19 @@ $(function() {
             }
         });
     },
-    launchSignUpModal: function(){
+
+    launchSignUpModal: function() {
       $(document).foundation();
       $('#myModal').foundation('open');
     },
-    onClose: function(){
+
+    onClose: function() {
       this.model.unbind("change", this.render);
     },
 
-    render: function(){
+    render: function() {
       this.$el.html(this.template());
       console.log('rendering Login Page');
-
     }
   });
   
@@ -100,9 +99,9 @@ $(function() {
         },
         logOutUser: function(){
           Parse.User.logOut();
-          viewController.userAuthentication();
+          app_router.userAuthentication();
         }
-    });
+  });
 
   var AppView = Backbone.View.extend({
         template: Handlebars.compile($('#app-tpl').html()),
@@ -112,92 +111,87 @@ $(function() {
             console.log("Initializing the Application");
             app.initialize();
         }
-    });
+  });
 
-var ContentView = Backbone.View.extend({
-  /*
-   * Initialize with the template-id
-   */
-  initialize: function(options) {
-    this.template = options.template;
-  },
-  
-  /*
-   * Get the template content and render it into a new div-element
-   */
-  render: function() {
-    var content = $(this.template).html();
-    $(this.el).html(content);
+  var ContentView = Backbone.View.extend({
+    /*
+     * Initialize with the template-id
+     */
+    initialize: function(options) {
+      this.template = options.template;
+    },
+    
+    /*
+     * Get the template content and render it into a new div-element
+     */
+    render: function() {
+      var content = $(this.template).html();
+      $(this.el).html(content);
 
-    return this;
-  }
-});
-
-var viewController = Backbone.Router.extend({
-  routes: {
-    "": "index",
-    "userAuth": "userAuthentication",
-    "logOut": "logOutUser",
-    "app": "appStart",
-
-  },
-  index: function(){
-    $(document.body).append("Index route has been called..");
-  },
-  initialize: function(el){
-    this.el = el;
-    this.loginView = new ContentView({template: '#LoginContainer'});
-    this.welcomeView = new ContentView({template: '.app-header'});
-    this.appView = new ContentView({template:'.app'}) ;
-  },
-
-  currentView: null,
-
-  switchView: function(view) {
-    if (this.currentView) {
-      // Detach the old view
-      this.currentView.remove();
+      return this;
     }
+  });
 
-    // Move the view element into the DOM (replacing the old content)
-    this.el.html(view.el);
+  var AppRouter = Backbone.Router.extend({
+    routes: {
+      "": "index",
+      "userAuth": "userAuthentication",
+      "logOut": "logOutUser",
+      "app": "appStart",
+    },
 
-    // Render view after it is in the DOM (styles are applied)
-    view.render();
+    index: function(){
+      $(document.body).append("Index route has been called..");
+    },
+    initialize: function(el){
+      this.el = el;
+      this.loginView = new ContentView({template: '#LoginContainer'});
+      this.welcomeView = new ContentView({template: '.app-header'});
+      this.appView = new ContentView({template:'.app'}) ;
+    },
 
-    this.currentView = view;
-  },
+    currentView: null,
 
-  welcomeUser: function(currentUser){
-    var welcomeView = new WelcomeView({ model: currentUser });
-    // var AppView = new AppView();
-    this.switchView(welcomeView)
+    switchView: function(view) {
+      if (this.currentView) {
+        // Detach the old view
+        this.currentView.remove();
+      }
 
-  },
+      // Move the view element into the DOM (replacing the old content)
+      this.el.html(view.el);
 
-  userAuthentication: function(){
-    var loginView = new LoginView();
-    this.switchView(loginView);
-    // $('#LoginContainer').html(loginView.el);
-    // }
-  },
+      // Render view after it is in the DOM (styles are applied)
+      view.render();
 
-  appStart: function(){
-  },
+      this.currentView = view;
+    },
 
+    welcomeUser: function(currentUser){
+      var welcomeView = new WelcomeView({ model: currentUser });
+      // var AppView = new AppView();
+      this.switchView(welcomeView)
 
+    },
 
+    userAuthentication: function(){
+      var loginView = new LoginView();
+      this.switchView(loginView);
+      // $('#LoginContainer').html(loginView.el);
+      // }
+    },
 
-});
+    appStart: function(){
+    },
+  });
   
   var currentUser = Parse.User.current();
   Parse.User.logOut();
 
-  var viewController = new viewController($('#content'));
-  Backbone.history.start({pushState: true})
+  var app_router = new AppRouter($('#content'));
+  Backbone.history.start();
 
-  if (currentUser){
-
+  if (currentUser) {
     console.log(currentUser);
     // do stuff with the user
 
@@ -207,16 +201,12 @@ var viewController = Backbone.Router.extend({
     // $('.app-header').html(welcomeView.el);
     // $('.app').html(AppView.el);
     // AppView.render();
-    viewController.welcomeUser(currentUser);
-    } 
-  else {
-
-    viewController.userAuthentication();
-          // show the signup or login page
+    app_router.welcomeUser(currentUser);
+  } else {
+    app_router.userAuthentication();
+    // show the signup or login page
     // var loginView = new LoginView();
     // loginView.render();
     // $('#LoginContainer').html(loginView.el);
-    }
-  
-
+  }
 });
