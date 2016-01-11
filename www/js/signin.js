@@ -89,17 +89,18 @@ $(function() {
   
   var WelcomeView = Backbone.View.extend({
         template: Handlebars.compile($('#welcome-tpl').html()),
+         events: {
+        
+        'click #LogOutButton': 'logOutUser',
+    },
 
-        events: {
-          'submit .form-logout': 'logout',
-
-        },
         render: function(){
             var attributes = this.model.toJSON();
             this.$el.html(this.template(attributes));
         },
-       logout: function(e) {
-
+        logOutUser: function(){
+          Parse.User.logOut();
+          viewController.userAuthentication();
         }
     });
 
@@ -184,12 +185,7 @@ var viewController = Backbone.Router.extend({
   appStart: function(){
   },
 
-  logOutUser: function(){
-    console.log('Logging the User Out');
-    Parse.User.logOut();
-    this.userAuthentication();
 
-  }
 
 
 });
@@ -198,9 +194,6 @@ var viewController = Backbone.Router.extend({
   Parse.User.logOut();
 
   var viewController = new viewController($('#content'));
-
-
-
   Backbone.history.start({pushState: true})
 
   if (currentUser){
