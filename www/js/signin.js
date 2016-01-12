@@ -12,7 +12,6 @@ $(function() {
 
     events: {
         'submit .form-signin': 'logIn',
-        'submit .form-signup': 'signUp',
         'click #SignUpButton': 'launchSignUpModal',
     },
 
@@ -40,6 +39,24 @@ $(function() {
             }
         });
     },
+  
+    onClose: function() {
+      this.model.unbind("change", this.render);
+    },
+
+    render: function() {
+      this.$el.html(this.template());
+      console.log('rendering Login Page');
+    }
+  });
+  
+  var SignUpView = Backbone.View.extend({
+    template: Handlebars.compile($('#signup-tpl').html()),
+
+    events: {
+        'submit .form-signup': 'signUp',
+    },
+
     signUp: function(e){
 
       //Prevent Default Submit Event
@@ -70,12 +87,6 @@ $(function() {
             }
         });
     },
-
-    launchSignUpModal: function() {
-      $(document).foundation();
-      $('#myModal').foundation('open');
-    },
-
     onClose: function() {
       this.model.unbind("change", this.render);
     },
@@ -85,7 +96,6 @@ $(function() {
       console.log('rendering Login Page');
     }
   });
-  
   var WelcomeView = Backbone.View.extend({
         template: Handlebars.compile($('#welcome-tpl').html()),
          events: {
@@ -138,6 +148,7 @@ $(function() {
       "userAuth": "userAuthentication",
       "logOut": "logOutUser",
       "app": "appStart",
+      "signUp": "launchSignUpPage"
     },
 
     index: function(){
@@ -169,16 +180,21 @@ $(function() {
 
     welcomeUser: function(currentUser){
       var welcomeView = new WelcomeView({ model: currentUser });
-      // var AppView = new AppView();
-      this.switchView(welcomeView)
+      this.switchView(welcomeView);
 
     },
 
+    launchSignUpPage: function(){
+
+      console.log("Launching Sign Up Page")
+      var signUpView = new SignUpView();
+      this.switchView(signUpView);
+      
+    },
     userAuthentication: function(){
       var loginView = new LoginView();
       this.switchView(loginView);
-      // $('#LoginContainer').html(loginView.el);
-      // }
+
     },
 
     appStart: function(){
@@ -193,20 +209,9 @@ $(function() {
 
   if (currentUser) {
     console.log(currentUser);
-    // do stuff with the user
-
-    // var welcomeView = new WelcomeView({ model: currentUser });
-    // var AppView = new AppView();
-    // welcomeView.render();
-    // $('.app-header').html(welcomeView.el);
-    // $('.app').html(AppView.el);
-    // AppView.render();
     app_router.welcomeUser(currentUser);
   } else {
     app_router.userAuthentication();
-    // show the signup or login page
-    // var loginView = new LoginView();
-    // loginView.render();
-    // $('#LoginContainer').html(loginView.el);
+
   }
 });

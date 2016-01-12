@@ -36,6 +36,7 @@
 
         <div id="content" class="content">
             <!-- Content div that is filled by the router -->
+
         </div>
 
         <footer>
@@ -66,32 +67,35 @@
 </div>
 <div class="row">
     <div class="medium-6 medium-offset-3 columns auth-plain">
-        <button id="SignUpButton" class="success button" type="button">Create An Account</button>
+        <a href="#signUp">Create An Account</a>
     </div>
 </div>
 
-    <div id="myModal" class="reveal modal-container" data-reveal>
-        <div class="row">
 
-                <div class="medium-6 columns auth-plain">
-                    <div class="signup-panel newusers">
-                    <!--Sign Up Form-->
-                        <form class="form-signup" role="form">
-                            <h4>Make an Account</h4>
-                            <input type="text" name="username" class="form-control" placeholder="Username" required="" autofocus="">
-                            <input type="password" name="password" class="form-control" placeholder="Password" required="">
-                            <div id='signup-error'></div>
-
-                            <button class="success button" type="submit">Sign Up</button>
-                        </form>
-                    </div>          
-                </div>
-        </div><!--End of Row-->
-
-    </div>
 </script>
 </div>
 
+<div id="SignUpContainer">
+<script id="signup-tpl" type="text/x-handlebars-template">
+
+    <div class="row"><!--Container for SignUp Form-->
+        <div class="medium-6 medium-offset-3 columns auth-plain">
+            <div class="signup-panel newusers">
+            <!--Sign Up Form-->
+                <form class="form-signup" role="form">
+                    <h4>Make an Account</h4>
+                    <input type="text" name="username" class="form-control" placeholder="Username" required="" autofocus="">
+                    <input type="password" name="password" class="form-control" placeholder="Password" required="">
+                    <div id='signup-error'></div>
+
+                    <button class="success button" type="submit">Sign Up</button>
+                </form>
+            </div>          
+        </div>
+    </div><!--End of Row-->
+
+</script>
+</div>
     
     
 
