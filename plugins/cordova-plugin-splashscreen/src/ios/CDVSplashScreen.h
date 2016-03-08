@@ -17,15 +17,28 @@
  under the License.
  */
 
-#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
 #import <Cordova/CDVPlugin.h>
-#import <Cordova/CDVWhitelist.h>
 
-@interface CDVNavigationWhitelistPlugin : CDVPlugin {}
+typedef struct {
+    BOOL iPhone;
+    BOOL iPad;
+    BOOL iPhone4;
+    BOOL iPhone5;
+    BOOL iPhone6;
+    BOOL iPhone6Plus;
+    BOOL retina;
+    
+} CDV_iOSDevice;
 
-@property (nonatomic, readonly, strong) CDVWhitelist* whitelist; // readonly for public
+@interface CDVSplashScreen : CDVPlugin {
+    UIActivityIndicatorView* _activityView;
+    UIImageView* _imageView;
+    NSString* _curImageName;
+    BOOL _visible;
+}
 
-- (BOOL)shouldAllowNavigationToURL:(NSURL *)url;
-- (BOOL)shouldAllowRequestForURL:(NSURL *)url;
+- (void)show:(CDVInvokedUrlCommand*)command;
+- (void)hide:(CDVInvokedUrlCommand*)command;
 
 @end

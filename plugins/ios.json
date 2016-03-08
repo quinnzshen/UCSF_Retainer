@@ -45,6 +45,18 @@
         },
         "cordova-plugin-dialogs": {
             "PACKAGE_NAME": "com.ucsf.smartretainer"
+        },
+        "cordova-plugin-device": {
+            "PACKAGE_NAME": "com.ucsf.smartretainer"
+        },
+        "cordova-plugin-splashscreen": {
+            "PACKAGE_NAME": "com.ucsf.smartretainer"
+        },
+        "cordova-plugin-statusbar": {
+            "PACKAGE_NAME": "com.ucsf.smartretainer"
+        },
+        "ionic-plugin-keyboard": {
+            "PACKAGE_NAME": "com.ucsf.smartretainer"
         }
     },
     "dependent_plugins": {}
