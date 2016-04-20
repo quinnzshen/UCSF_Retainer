@@ -4,7 +4,7 @@ $(function() {
   // Initialize Parse with your Parse application javascript keys
   var test_app_id = 'r3qEj28qncJL76GkjmghLyVvhY8fTFGiXlufGMnW';
   var test_javascript_key = 'Mo5yK2Jee4DDVSOIrTnwbUVARFxMr6nmhwbT17K4';
-
+  console.log('yo')
   Parse.initialize(test_app_id, test_javascript_key);
 
   var LoginView = Backbone.View.extend({
